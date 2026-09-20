@@ -1,17 +1,17 @@
 ---
-title: Parametric World Cartography Editor Implementation Roadmap
+title: Atlas Implementation Roadmap
 roadmap_version: 1.0
-canonical_specification: Parametric World Cartography Editor Master Design Specification Revision 2.0
+canonical_specification: Atlas Master Design Specification Revision 2.0
 canonical_specification_sha256: d47a0eef17ad254026db1a1d2a51a348e65ff7c92bdc7bc7dbaa4faea28a4222
 status: execution baseline
 date: 2026-09-20
 ---
 
-# Parametric World Cartography Editor Implementation Roadmap
+# Atlas Implementation Roadmap
 
 ## Document purpose
 
-This roadmap converts the canonical **Parametric World Cartography Editor Master Design Specification Revision 2.0** into an implementation sequence that a human team or agentic coding system can execute without violating the source model. It defines what base functionality ships in each version, why that order exists, what must remain out of scope, which specification requirements first become enforceable, and what evidence is required before promotion.
+This roadmap converts the canonical **Atlas Master Design Specification Revision 2.0** into an implementation sequence that a human team or agentic coding system can execute without violating the source model. It defines what base functionality ships in each version, why that order exists, what must remain out of scope, which specification requirements first become enforceable, and what evidence is required before promotion.
 
 This is a delivery plan, not a replacement architecture. If this roadmap and the canonical specification appear to disagree, the specification wins. If implementing a roadmap item would redefine a canonical term, move authoritative ownership, weaken a CORE requirement, or change a persisted contract, stop and create an Architecture Decision Record before changing code.
 
