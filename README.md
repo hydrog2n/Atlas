@@ -79,16 +79,23 @@ The roadmap is capability-based. Exact contents may evolve as implementation and
 
 | Version | Milestone | Primary scope | Status |
 | --- | --- | --- | --- |
-| `v0.1.0` | Foundation | Repository and application skeleton, architecture contracts, canonical IDs and units, initial project schema, editor shell, and automated test foundation | **Current** |
-| `v0.2.0` | Canvas and drafting | Infinite canvas, camera controls, grid, snapping, selection, measurements, reference overlays, and basic vector objects | Planned |
-| `v0.3.0` | Parametric roads | Road splines, station anchors, segments, cross-sections, lane identity, derived road envelopes, markings, and semantic zoom | Planned |
-| `v0.4.0` | Network editing | Ports, endpoint connections, T-junctions, lane continuations, basic turn movements, topology validation, and network inspection | Planned |
-| `v0.5.0` | World semantics | Buildings, polygons, POIs, zones, display layers, basic spatial levels, tags, groups, schemas, styles, labels, and search | Planned |
-| `v0.6.0` | Reliable editing | Inspector and hierarchy workflows, command transactions, undo/redo, diagnostics, repair actions, accessibility baseline, and crash recovery | Planned |
-| `v0.7.0` | MVP integration | Versioned project packages, migrations, atomic save, autosave, incremental rebuilds, and PNG/SVG/canonical JSON export | Planned |
-| `v0.8.0` | Vertical and nested worlds | Elevation profiles, vertical curves, bridges, tunnels, clearance, active-level controls, submaps, portals, and player-context preview | Planned |
-| `v0.9.0` | Extensibility and scale | Advanced transitions and junctions, versioned prefabs, procedural objects, plugin exporter API, large-world optimization, and release hardening | Planned |
-| `v1.0.0` | Production release | Complete documented V1 feature set, stable public project format, conformance suite, performance targets, accessibility review, and supported extension interfaces | Planned |
+| `v0.1.0` | Domain kernel and engineering contract | Stable typed records, canonical IDs and units, ownership validation, deterministic normalization, module boundaries, and conformance foundations | **Current** |
+| `v0.2.0` | Project package persistence and recovery | Canonical packages, deterministic serialization, atomic save, autosave, recovery, migrations, and unknown-data preservation | Planned |
+| `v0.3.0` | Command transactions, dependencies, and validation | Previewable commands, commit/cancel, undo/redo, dependency invalidation, incremental diagnostics, and stale-result protection | Planned |
+| `v0.4.0` | Canvas drafting and generic object editing | Infinite real-scale canvas, generic geometry, layers and levels, references, selection, inspection, and keyboard workflows | Planned |
+| `v0.5.0` | RoadSpline stationing and derived geometry | Road splines, station anchors, segments, deterministic edits, derived envelopes, and geometry diagnostics | Planned |
+| `v0.6.0` | Lane-native cross-sections and stable lineage | Physically scaled lanes and road elements, lane ports, cross-section editing, lineage, and deterministic reverse/reorder behavior | Planned |
+| `v0.7.0` | Transport network and basic junctions | Explicit connections, T-junctions, lane mappings, movements, graph inspection, and topology validation | Planned |
+| `v0.8.0` | World semantics, styles, and semantic zoom | Buildings, zones, POIs, parcels, schemas, metadata, layers, search, styles, labels, and scale-dependent representations | Planned |
+| `v0.9.0` | MVP integration, export, and hardening | End-to-end authoring, PNG/SVG/canonical JSON export, recovery, performance, security, accessibility, and release hardening | Planned |
+| `v1.0.0` | Production MVP | Supported, stable, game-agnostic real-scale world authoring with basic junction topology and published compatibility guarantees | Planned |
+| `v1.1.0` | RoadTransitions and advanced junction editing | Lane topology changes, transition ownership, advanced movements, and transition-aware editing | Planned |
+| `v1.2.0` | Elevation, bridges, and tunnels | Grades, vertical curves, clearance, stacked roads, active levels, and elevation-aware connectivity | Planned |
+| `v1.3.0` | Hierarchical maps, submaps, and portals | Nested maps, lazy loading, PortalLinks, child-map navigation, and player-context preview | Planned |
+| `v1.4.0` | Versioned parametric prefabs | Immutable prefab versions, instances, overrides, reconciliation, conflict handling, and detachment | Planned |
+| `v1.5.0` | Road-adjacent and procedural world systems | Stable hosted bindings, spline-distributed objects, parcels, procedural generation, overrides, and regeneration | Planned |
+| `v1.6.0` | Extensions, advanced export, and analysis | Safe plugin boundaries, importer/exporter APIs, validators, schemas, styles, queries, and analysis tools | Planned |
+| `v1.7.0` | Production scale and long-term support | Large-world performance, bounded resource use, health reporting, compatibility, soak testing, and LTS readiness | Planned |
 
 ### Beyond `v1.0.0`
 
@@ -100,22 +107,21 @@ Atlas is at the beginning of the roadmap.
 
 **Current focus**
 
-- Establish the application and repository structure.
-- Encode the canonical project, map, object, road, and network data contracts.
-- Implement stable identifiers, real-world units, tolerances, and schema versioning.
-- Build the first editor shell and canvas integration points.
-- Create test infrastructure for deterministic geometry, transactions, and persistence.
-- Convert the master design specification into traceable implementation requirements.
+- Establish explicit domain, application, infrastructure, presentation, and test boundaries.
+- Implement stable identifiers, canonical meters, tolerances, revisions, result types, and deterministic normalization.
+- Define Project, Map, DisplayLayer, SpatialLevel, Group, Tag, and generic object ownership contracts.
+- Record architecture decisions, requirement-to-test traceability, golden-file rules, and the decision backlog.
+- Build the foundation conformance suite for identity, units, ownership, determinism, and dependency direction.
 
 **Not yet part of the current release**
 
-- A production-ready road or lane editor
-- Complete junction and routing workflows
-- Vertical levels, submaps, portals, or prefabs
-- Stable import/export or plugin APIs
-- Production performance guarantees
+- Project package persistence, migration, autosave, and recovery
+- Command transactions, undo/redo, dependency scheduling, and incremental validation
+- Interactive canvas and generic geometry editing
+- Road, lane, junction, elevation, submap, prefab, and procedural authoring
+- Stable import/export or plugin APIs and production performance guarantees
 
-The next milestone is **`v0.2.0` — Canvas and drafting**, which establishes the interactive authoring surface required by every later system.
+The next milestone is **`v0.2.0` — Project package persistence and recovery**, which makes authoritative source data durable before complex editing begins.
 
 ## Project Boundaries
 
