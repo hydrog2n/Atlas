@@ -4,9 +4,9 @@
 
 Atlas is a standalone, game-agnostic editor for designing fictional and simulated worlds in real-world units. It combines direct vector drawing, parametric road construction, lane-level transport networks, hierarchical maps, and extensible semantic data in one 2D-first authoring environment.
 
-> **Current version: `v0.1.0`** — Foundation and architecture phase
+> **Current version: `v0.1.1`** — CI/toolchain stabilization and release hardening
 
-Atlas is currently in early development. The product model and core architectural rules are defined; implementation is focused on the project foundation, canonical data model, and first interactive editor shell.
+Atlas remains in the v0.1.x foundation phase, but the project now includes the first build-and-test stabilization pass for the Windows toolchain. The current release keeps the domain kernel in place while correcting the CI build environment so the foundation remains reproducible and verifiable.
 
 ## Why Atlas?
 
@@ -79,7 +79,8 @@ The roadmap is capability-based. Exact contents may evolve as implementation and
 
 | Version | Milestone | Primary scope | Status |
 | --- | --- | --- | --- |
-| `v0.1.0` | Domain kernel and engineering contract | Stable typed records, canonical IDs and units, ownership validation, deterministic normalization, module boundaries, and conformance foundations | **Current** |
+| `v0.1.0` | Domain kernel and engineering contract | Stable typed records, canonical IDs and units, ownership validation, deterministic normalization, module boundaries, and conformance foundations | Completed |
+| `v0.1.1` | CI/toolchain stabilization | Corrected Windows build environment, Visual Studio developer-shell initialization, and reproducible CI validation for the foundation build | **Current** |
 | `v0.2.0` | Project package persistence and recovery | Canonical packages, deterministic serialization, atomic save, autosave, recovery, migrations, and unknown-data preservation | Planned |
 | `v0.3.0` | Command transactions, dependencies, and validation | Previewable commands, commit/cancel, undo/redo, dependency invalidation, incremental diagnostics, and stale-result protection | Planned |
 | `v0.4.0` | Canvas drafting and generic object editing | Infinite real-scale canvas, generic geometry, layers and levels, references, selection, inspection, and keyboard workflows | Planned |
@@ -101,18 +102,17 @@ The roadmap is capability-based. Exact contents may evolve as implementation and
 
 Potential future work includes advanced GIS and OpenStreetMap-derived imports, traffic and route simulation, derived 3D previews, collaborative editing, scripting and automation, procedural city generation, constraint-assisted interchange design, and live game-engine synchronization.
 
-## Current Development Status — `v0.1.0`
+## Current Development Status — `v0.1.1`
 
-Atlas is at the beginning of the roadmap.
+Atlas is still in the foundational release train, but the current patch-level stabilization pass is focused on reliable build verification and CI correctness.
 
 **Current focus**
 
-- Establish explicit domain, application, infrastructure, presentation, and test boundaries.
-- Adopt the initial implementation baseline recorded in [ADR-0001](.DESIGN/adr/ADR-0001-technology-baseline.md): C++23, Qt 6 Widgets, CMake, vcpkg, GoogleTest, and deterministic JSON source records.
-- Implement stable identifiers, canonical meters, tolerances, revisions, result types, and deterministic normalization.
-- Define Project, Map, DisplayLayer, SpatialLevel, Group, Tag, and generic object ownership contracts.
-- Record architecture decisions, requirement-to-test traceability, golden-file rules, and the decision backlog.
-- Build the foundation conformance suite for identity, units, ownership, determinism, and dependency direction.
+- Preserve the v0.1.0 domain kernel and conformance suite.
+- Keep the Windows toolchain consistent with the actual Visual Studio/MSVC environment used by GitHub Actions.
+- Ensure CMake configure, build, and test steps execute under the correct compiler path and toolchain variables.
+- Maintain the implementation baseline recorded in [ADR-0001](.DESIGN/adr/ADR-0001-technology-baseline.md): C++23, Qt 6 Widgets, CMake, vcpkg, GoogleTest, and deterministic JSON source records.
+- Keep architecture decisions, requirement-to-test traceability, and the decision backlog aligned with the project’s release scope.
 
 **Not yet part of the current release**
 

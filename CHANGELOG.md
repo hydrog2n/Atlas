@@ -13,6 +13,44 @@ The format follows a release-focused pattern:
 
 ---
 
+## v0.1.1 - 2026-09-21
+
+### Release scope
+
+Release stabilization for the v0.1.x foundation. This patch release preserves the v0.1.0 domain kernel and conformance work while fixing the Windows CI/build environment so the project can configure, compile, and test reliably under the actual Visual Studio/MSVC toolchain.
+
+### Implemented
+
+- Fixed the GitHub Actions toolchain mismatch by ensuring the workflow initializes the Visual Studio developer environment before configure/build/test.
+- Kept the repo's CMake preset using the stable Ninja generator while explicitly loading the correct compiler environment for Windows builds.
+- Verified the headless build and test process under the MSVC toolchain.
+- Preserved the v0.1.0 foundation build and the conformance test suite.
+
+### Validation evidence
+
+Verified commands:
+
+- `cmake --preset headless-vcpkg`
+- `cmake --build --preset headless-vcpkg`
+- `ctest --preset headless-vcpkg --output-on-failure`
+
+Result:
+
+- build passed
+- 5 out of 5 tests passed
+- output reported: `100% tests passed out of 5`
+
+### Known limitations
+
+- This release does not add persistence, transactions, or higher-order editing features.
+- The project remains a foundation release in the v0.1.x track.
+
+### Next milestone
+
+- v0.2.0: Project Package Persistence and Recovery
+
+---
+
 ## v0.1.0 - 2026-09-20
 
 ### Release scope

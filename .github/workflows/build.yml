@@ -24,10 +24,22 @@ jobs:
         run: '& "$env:VCPKG_ROOT\vcpkg.exe" install --triplet x64-windows'
 
       - name: Configure
-        run: cmake --preset headless-vcpkg
+        shell: pwsh
+        run: |
+          $vs = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          & "$vs\Common7\Tools\VsDevCmd.bat" -arch=amd64 -host_arch=amd64
+          cmake --preset headless-vcpkg
 
       - name: Build
-        run: cmake --build --preset headless-vcpkg
+        shell: pwsh
+        run: |
+          $vs = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          & "$vs\Common7\Tools\VsDevCmd.bat" -arch=amd64 -host_arch=amd64
+          cmake --build --preset headless-vcpkg
 
       - name: Test
-        run: ctest --preset headless-vcpkg
+        shell: pwsh
+        run: |
+          $vs = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          & "$vs\Common7\Tools\VsDevCmd.bat" -arch=amd64 -host_arch=amd64
+          ctest --preset headless-vcpkg
