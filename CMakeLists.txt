@@ -6,6 +6,10 @@ set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+if(MSVC)
+    add_compile_options(/EHsc)
+endif()
+
 option(ATLAS_BUILD_UI "Build the Qt Widgets desktop shell" ON)
 option(ATLAS_BUILD_TESTS "Build the GoogleTest suite" ON)
 
