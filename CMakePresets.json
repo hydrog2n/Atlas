@@ -1,0 +1,53 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 25,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "windows-vcpkg",
+      "displayName": "Windows with vcpkg",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+        "CMAKE_BUILD_TYPE": "Debug",
+        "ATLAS_BUILD_UI": "ON",
+        "ATLAS_BUILD_TESTS": "ON",
+        "VCPKG_MANIFEST_FEATURES": "ui"
+      }
+    },
+    {
+      "name": "headless-vcpkg",
+      "displayName": "Headless domain and CLI",
+      "inherits": "windows-vcpkg",
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "cacheVariables": {
+        "ATLAS_BUILD_UI": "OFF",
+        "ATLAS_BUILD_TESTS": "ON",
+        "VCPKG_MANIFEST_FEATURES": ""
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "windows-vcpkg",
+      "configurePreset": "windows-vcpkg"
+    },
+    {
+      "name": "headless-vcpkg",
+      "configurePreset": "headless-vcpkg"
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "headless-vcpkg",
+      "configurePreset": "headless-vcpkg",
+      "output": {
+        "outputOnFailure": true
+      }
+    }
+  ]
+}

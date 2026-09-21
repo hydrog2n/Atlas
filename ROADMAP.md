@@ -1,8 +1,9 @@
 ---
 title: Atlas Implementation Roadmap
 roadmap_version: 1.0
-canonical_specification: Atlas Master Design Specification Revision 2.0
-canonical_specification_sha256: d47a0eef17ad254026db1a1d2a51a348e65ff7c92bdc7bc7dbaa4faea28a4222
+canonical_specification: Atlas Master Design Specification Revision 3.0
+canonical_specification_path: .DESIGN/Atlas_Master_Design_Specification_Revision_3_0.md
+canonical_specification_sha256: b27e57d6d4b652696603bb0d018b4144e5750767d71dede1a3dfef7cd52ed655
 status: execution baseline
 date: 2026-09-20
 ---
@@ -11,7 +12,7 @@ date: 2026-09-20
 
 ## Document purpose
 
-This roadmap converts the canonical **Atlas Master Design Specification Revision 2.0** into an implementation sequence that a human team or agentic coding system can execute without violating the source model. It defines what base functionality ships in each version, why that order exists, what must remain out of scope, which specification requirements first become enforceable, and what evidence is required before promotion.
+This roadmap converts the canonical **Atlas Master Design Specification Revision 3.0** into an implementation sequence that a human team or agentic coding system can execute without violating the source model. It defines what base functionality ships in each version, why that order exists, what must remain out of scope, which specification requirements first become enforceable, and what evidence is required before promotion.
 
 This is a delivery plan, not a replacement architecture. If this roadmap and the canonical specification appear to disagree, the specification wins. If implementing a roadmap item would redefine a canonical term, move authoritative ownership, weaken a CORE requirement, or change a persisted contract, stop and create an Architecture Decision Record before changing code.
 
@@ -103,6 +104,8 @@ Before v0.1.0 implementation begins, record the following decisions. If an exist
 | Plugin isolation | Deferred design constraints and threat-model owner | Must be finalized before v1.6.0 |
 
 Technology selection must not alter the canonical domain. For example, a renderer may use single-precision camera-relative buffers while the source remains double-precision meters; a database may be used internally while canonical package import/export remains available.
+
+The initial technology baseline is recorded in [ADR-0001](.DESIGN/adr/ADR-0001-technology-baseline.md): C++23, Qt 6 Widgets, CMake, vcpkg manifest mode, GoogleTest, and deterministic UTF-8 JSON source records. The GPU canvas backend, geometry-library policy, exact toolchain versions, and CI matrix remain evidence-based follow-up decisions.
 
 ## Common definition of ready for an agent task
 

@@ -108,6 +108,7 @@ Atlas is at the beginning of the roadmap.
 **Current focus**
 
 - Establish explicit domain, application, infrastructure, presentation, and test boundaries.
+- Adopt the initial implementation baseline recorded in [ADR-0001](.DESIGN/adr/ADR-0001-technology-baseline.md): C++23, Qt 6 Widgets, CMake, vcpkg, GoogleTest, and deterministic JSON source records.
 - Implement stable identifiers, canonical meters, tolerances, revisions, result types, and deterministic normalization.
 - Define Project, Map, DisplayLayer, SpatialLevel, Group, Tag, and generic object ownership contracts.
 - Record architecture decisions, requirement-to-test traceability, golden-file rules, and the decision backlog.
@@ -150,11 +151,15 @@ Atlas is in an architecture-sensitive stage. Before proposing a major feature or
 4. Include tests for deterministic behavior, undo/redo, validation, and save/load round trips where applicable.
 5. Document intentional architectural changes before implementation.
 
-Detailed build instructions, coding standards, contribution workflow, and issue templates will be added as the implementation stack is finalized.
+The initial implementation stack is documented in [ADR-0001](.DESIGN/adr/ADR-0001-technology-baseline.md). Geometry-library selection, the GPU canvas backend, and exact toolchain versions require the validation described there before they become fixed dependencies.
+
+Build prerequisites and commands are documented in [README.build.md](README.build.md).
+
+Detailed coding standards, contribution workflow, and issue templates will be added as the implementation stack matures.
 
 ## Documentation
 
-The **Atlas Master Design Specification, Revision 2.0** is the canonical product, user-experience, architecture, persistence, validation, and conformance reference for the project. Repository documentation and implementation decisions should remain traceable to it.
+The [Atlas Master Design Specification, Revision 3.0](.DESIGN/Atlas_Master_Design_Specification_Revision_3_0.md) is the canonical product, user-experience, architecture, persistence, validation, release, and conformance reference for the project. Repository documentation and implementation decisions should remain traceable to it. The [Implementation Roadmap](ROADMAP.md) sequences its requirements into releases and work packets.
 
 ## License
 

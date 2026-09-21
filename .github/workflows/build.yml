@@ -1,0 +1,33 @@
+name: Atlas Build
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  headless:
+    runs-on: windows-latest
+    env:
+      VCPKG_ROOT: ${{ github.workspace }}\vcpkg
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install vcpkg
+        shell: pwsh
+        run: |
+          git clone --depth 1 https://github.com/microsoft/vcpkg.git "$env:VCPKG_ROOT"
+          & "$env:VCPKG_ROOT\bootstrap-vcpkg.bat" -disableMetrics
+
+      - name: Install dependencies
+        shell: pwsh
+        run: '& "$env:VCPKG_ROOT\vcpkg.exe" install --triplet x64-windows'
+
+      - name: Configure
+        run: cmake --preset headless-vcpkg
+
+      - name: Build
+        run: cmake --build --preset headless-vcpkg
+
+      - name: Test
+        run: ctest --preset headless-vcpkg

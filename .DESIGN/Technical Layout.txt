@@ -1,0 +1,208 @@
+# Atlas Technical Layout
+
+This document is an implementation note for [ADR-0001](adr/ADR-0001-technology-baseline.md), not a competing source of product requirements. The canonical product and architecture authority is [Revision 3.0](Atlas_Master_Design_Specification_Revision_3_0.md); release sequencing is defined by [ROADMAP.md](../ROADMAP.md).
+
+## Accepted baseline
+
+Atlas uses **C++23** as its initial implementation language and **Qt 6 Widgets** for the desktop UI. The initial build system is **CMake**, dependencies use **vcpkg manifest mode**, tests use **GoogleTest**, and canonical source records use deterministic **UTF-8 JSON** inside the `.atlas` package format.
+
+The initial supported platform is Windows. Core modules remain portable, and cross-platform support is validated rather than assumed.
+
+The exact GPU canvas backend, geometry-library set, compiler and Qt patch versions, and CI matrix remain follow-up decisions. They require the prototype, benchmark, license, and reproducibility evidence defined by ADR-0001.
+
+Given the architecture we've designed, my preferred stack would be:
+
+| Component                   | Recommendation                             |
+| --------------------------- | ------------------------------------------ |
+| **Primary language**        | **C++23**                                  |
+| **Desktop framework**       | **Qt 6 Widgets**                           |
+| **2D rendering**            | **Dedicated custom GPU-backed canvas; backend pending prototype** |
+| **Geometry engine**         | C++ with a separately approved library policy |
+| **Serialization**           | Deterministic UTF-8 JSON source records    |
+| **Build system**            | CMake                                      |
+| **Testing**                 | GoogleTest                                 |
+| **Package/dependencies**    | vcpkg manifest mode                        |
+| **Scripting/plugins later** | Python or Lua API layered over C++         |
+| **Primary OS initially**    | Windows, while keeping core cross-platform |
+
+### Why C++ fits Atlas unusually well
+
+Atlas isn't fundamentally a CRUD desktop application. You're building an **interactive geometric modeling system**.
+
+Your specification calls for things like real-world double-precision coordinates, parametric splines, lane offsets, intersections, spatial indexing, incremental geometry regeneration, hit testing, potentially 100,000+ objects, and a 60 FPS interactive canvas.
+
+That's exactly the sort of workload where C++ is at home.
+
+More importantly, C++ gives Atlas access to a mature ecosystem of computational-geometry libraries without having to cross a language boundary constantly. Things like **Boost.Geometry, CGAL, Clipper2, GEOS, Eigen**, etc., become available depending on what we eventually need.
+
+And Atlas's architecture lends itself nicely to separating the application into something like:
+
+```text
+Atlas
+│
+├── atlas-domain/           C++ authoritative records and invariants
+│   ├── project/
+│   ├── identity/
+│   ├── units/
+│   └── diagnostics/
+
+├── atlas-application/      C++ commands, transactions, validation, dependencies
+│   ├── commands/
+│   ├── transactions/
+│   └── revisions/
+│
+├── atlas-geometry/         C++
+│   ├── curves/
+│   ├── offsets/
+│   ├── intersections/
+│   ├── polygons/
+│   └── spatial-index/
+│
+├── atlas-road/             C++
+│   ├── RoadSpline
+│   ├── RoadSegment
+│   ├── StationAnchor
+│   ├── CrossSection
+│   └── RoadTransition
+│
+├── atlas-network/          C++
+│   ├── Junction
+│   ├── LaneConnection
+│   ├── PortalLink
+│   └── routing/
+│
+├── atlas-render/           C++
+│   ├── canvas/
+│   ├── semantic-zoom/
+│   ├── tessellation/
+│   └── picking/
+│
+├── atlas-ui/               C++ / Qt
+│
+├── atlas-persistence/      C++ canonical package adapters and migrations
+│   ├── json/
+│   ├── migration/
+│   ├── recovery/
+│   └── hashes/
+
+├── atlas-adapters/         C++ importers, exporters, and engine integrations
+│   ├── svg/
+│   ├── png/
+│   └── plugins/
+│
+└── tests/                  C++ public-boundary and conformance tests
+```
+
+That separation also matches the specification's distinction between **authoritative source data and disposable derived geometry**.
+
+## Why Qt 6
+
+Qt is probably the strongest reason I'd choose C++ rather than something more exotic.
+
+Atlas needs a serious desktop application UI:
+
+* infinite canvas
+* hierarchy panel
+* property inspector
+* docking panels
+* toolbars
+* context-sensitive controls
+* keyboard shortcuts
+* undo/redo
+* custom widgets
+* drag/drop
+* menus
+* dialogs
+* accessibility
+* high-DPI support
+* eventually Windows/Linux/macOS
+
+That's basically Qt's wheelhouse.
+
+Your specification already calls for a Photoshop/CAD-like workspace with a canvas surrounded by hierarchy, inspector, specialist panels, context toolbar and status bar.
+
+I'd probably use **Qt Widgets initially rather than QML**. QML is attractive for modern interfaces, but Atlas is much closer to CAD/GIS/DCC software than a mobile application. Qt Widgets gives us extremely mature desktop behavior.
+
+We can still build a modern-looking interface.
+
+---
+
+## The strongest alternative: C#/.NET
+
+If you told me:
+
+> "I want to prioritize development speed and AI-generated code over maximum architectural flexibility."
+
+I'd seriously consider:
+
+**C# + .NET 10 + Avalonia**
+
+C# would make Atlas significantly easier to develop. The language is safer and generally more pleasant for a project this size, and modern .NET performance is excellent.
+
+But there's a tradeoff.
+
+Atlas's geometry and rendering requirements are going to become increasingly sophisticated. C++ puts us directly into the native computational geometry/rendering ecosystem.
+
+I'd rank the realistic choices like this:
+
+| Stack                     | Atlas suitability | Main reason                                  |
+| ------------------------- | ----------------: | -------------------------------------------- |
+| **C++ + Qt 6**            |             ★★★★★ | Best long-term fit                           |
+| **C# + Avalonia**         |             ★★★★☆ | Excellent productivity                       |
+| **Rust + egui/Slint**     |             ★★★★☆ | Excellent core, weaker desktop ecosystem     |
+| **C# + WPF**              |             ★★★☆☆ | Great Windows app, Windows-only              |
+| **TypeScript + Electron** |             ★★☆☆☆ | UI easy, geometry application less ideal     |
+| **Python + PySide**       |             ★★☆☆☆ | Fantastic prototype, questionable foundation |
+| **Unreal/Unity**          |             ★☆☆☆☆ | Violates Atlas's engine-agnostic design      |
+
+The last one is particularly important: your specification explicitly says that Atlas should be a **standalone 2D-first authoring application rather than an Unreal or Unity extension**, and engine integrations should be adapters/exporters rather than becoming part of the native model.
+
+## One thing I would *not* do
+
+I wouldn't start Atlas in Python with the intention of "rewriting the performance-critical stuff later."
+
+That sounds attractive at v0.1.0 and becomes technical debt remarkably quickly.
+
+Likewise, I wouldn't prematurely split Atlas into five languages. At the beginning I'd keep it extremely boring:
+
+**C++23 + Qt 6 Widgets + CMake + vcpkg + GoogleTest + JSON.**
+
+That's enough.
+
+Then later:
+
+```text
+                   ATLAS
+
+                Qt 6 Desktop UI
+                       │
+                       ▼
+              ┌─────────────────┐
+              │   Atlas Core    │
+              │      C++        │
+              └────────┬────────┘
+                       │
+       ┌───────────────┼────────────────┐
+       ▼               ▼                ▼
+   Geometry          Network        Persistence
+      C++              C++              C++
+       │               │                │
+       └───────────────┼────────────────┘
+                       ▼
+                Derived Outputs
+                       │
+            ┌──────────┼──────────┐
+            ▼          ▼          ▼
+           SVG        JSON     Game Engine
+                              Export Plugins
+```
+
+And eventually we could expose a **Python scripting API** without making Python responsible for Atlas itself.
+
+### So for Atlas
+
+I'd commit to **C++23 + Qt 6** now.
+
+It's harder than Python/C#/TypeScript at the beginning, but the application we're designing is essentially a specialized combination of **CAD + GIS + road-network editor + level-design tool**. Native C++ is a very defensible foundation for something intended to eventually manipulate large parametric worlds interactively.
+
+Since you're currently at **v0.1.0**, this is also the ideal time to make that decision. Changing it after the RoadSpline/geometry/data-model layers exist would be dramatically more expensive.

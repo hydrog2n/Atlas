@@ -81,6 +81,8 @@ When two layers disagree, work stops at the conflict. The higher-authority docum
 - The roadmap's `v0.1.0` through `v1.7.0` train is the adopted capability sequence. Its post-1.x entries remain provisional until each is approved through discovery and an ADR-backed commitment.
 - Every release archives an evidence bundle and is blocked by defined stop-ship defects. Feature completion without evidence is not release completion.
 - Agentic work is governed by explicit definitions of ready and done, a machine-readable task contract, mandatory stop conditions, and an evidence-based response contract.
+- ADR-0001 adopts C++23, Qt 6 Widgets, CMake, vcpkg manifest mode, GoogleTest, and deterministic UTF-8 JSON source records as the initial implementation baseline. The domain remains independent of Qt, filesystem, renderer, game-engine, and plugin implementations.
+- The exact GPU canvas backend, computational geometry libraries, compiler and Qt patch versions, and CI matrix remain follow-up implementation decisions governed by ADR-0001 validation evidence.
 
 The following Revision 2 decisions remain in force:
 

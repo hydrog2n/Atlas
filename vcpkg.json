@@ -1,0 +1,20 @@
+{
+  "name": "atlas",
+  "version-string": "0.1.0",
+  "description": "Atlas game-agnostic world authoring application",
+  "dependencies": [
+    "gtest",
+    "nlohmann-json"
+  ],
+  "features": {
+    "ui": {
+      "description": "Desktop Qt shell for Atlas",
+      "dependencies": [
+        {
+          "name": "qtbase",
+          "features": ["widgets"]
+        }
+      ]
+    }
+  }
+}
