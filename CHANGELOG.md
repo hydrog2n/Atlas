@@ -13,6 +13,36 @@ The format follows a release-focused pattern:
 
 ---
 
+## v0.1.2 - 2026-09-22
+
+### Release scope
+
+Desktop build workflow and developer-run integration for the v0.1.x foundation.
+
+### Implemented
+
+- Added the official Qt 6.11.2 MSVC SDK as the supported Windows desktop build path.
+- Deprecated the unreliable Qt-through-vcpkg desktop preset while keeping the headless vcpkg path supported.
+- Added Qt runtime deployment with `windeployqt` so the desktop executable can run outside the Qt environment.
+- Added VS Code Run and Debug profiles for the CLI and Windows desktop application.
+- Simplified the preparation tasks so each debugger profile configures, builds, tests or deploys, and then launches exactly once.
+
+### Validation evidence
+
+- Official Qt SDK desktop configure and build completed successfully.
+- `atlas.exe` launched successfully after Qt runtime deployment.
+- Headless configure, build, and all 5 domain tests passed.
+
+### Known limitations
+
+- Project persistence, transactions, undo/redo, and interactive authoring remain planned for later releases.
+
+### Next milestone
+
+- v0.2.0: Project Package Persistence and Recovery
+
+---
+
 ## v0.1.1 - 2026-09-21
 
 ### Release scope

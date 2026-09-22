@@ -18,7 +18,7 @@ int main(int argc, char* argv[]) {
         "00000000-0000-4000-8000-000000000002");
 
     // QLabel is enough to confirm the UI can render project data without coupling to the model.
-    auto* label = new QLabel(QStringLiteral("Atlas v0.1.1\nProject: %1")
+    auto* label = new QLabel(QStringLiteral("Atlas v0.1.2\nProject: %1")
                                  .arg(QString::fromStdString(project.id())));
     label->setAlignment(Qt::AlignCenter);
     window.setCentralWidget(label);

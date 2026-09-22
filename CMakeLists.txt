@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.25)
 # This is the top-level build definition for the Atlas project.
 # It tells CMake which language we use, which components to build,
 # and how the project is organized into libraries, executables, and tests.
-project(Atlas VERSION 0.1.1 LANGUAGES CXX)
+project(Atlas VERSION 0.1.2 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
