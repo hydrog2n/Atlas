@@ -9,6 +9,7 @@ namespace atlas::domain {
 
 namespace {
 
+// Canonical root-map shape used for deterministic serialization.
 nlohmann::ordered_json normalizeRootMap(const Map& rootMap) {
     return nlohmann::ordered_json{
         {"id", rootMap.id},
@@ -20,10 +21,12 @@ nlohmann::ordered_json normalizeRootMap(const Map& rootMap) {
 
 } // namespace
 
+// Create a valid default project object.
 Project Project::empty(std::string projectId, std::string mapId) {
     return Project(std::move(projectId), Map{std::move(mapId)});
 }
 
+// Parse project JSON and validate the minimum required fields.
 Project Project::fromJson(const std::string& jsonText) {
     const auto parsed = nlohmann::json::parse(jsonText);
 
@@ -50,6 +53,7 @@ Project Project::fromJson(const std::string& jsonText) {
         std::move(extensions));
 }
 
+// Store the project identity and extension data in the class.
 Project::Project(std::string projectId, Map rootMap, nlohmann::json extensions)
     : id_(std::move(projectId)), rootMap_(std::move(rootMap)), extensions_(std::move(extensions)) {}
 
@@ -65,6 +69,7 @@ const nlohmann::json& Project::extensions() const noexcept {
     return extensions_;
 }
 
+// Serialize the project into a canonical JSON format.
 std::string Project::normalizedJson() const {
     nlohmann::ordered_json normalized = {
         {"id", id_},

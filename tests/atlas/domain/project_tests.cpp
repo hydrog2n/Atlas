@@ -2,6 +2,10 @@
 
 #include <gtest/gtest.h>
 
+// These tests describe the first project-level requirements.
+// They are intentionally small and direct: they verify identity, serialization,
+// validation, and preservation of extension data.
+
 TEST(Project, R010_003_EmptyProjectHasStableRootMap) {
     const auto project = atlas::domain::Project::empty("project", "root-map");
 

@@ -1,6 +1,6 @@
 {
   "name": "atlas",
-  "version-string": "0.1.0",
+  "version-string": "0.1.1",
   "description": "Atlas game-agnostic world authoring application",
   "dependencies": [
     "gtest",
@@ -12,6 +12,7 @@
       "dependencies": [
         {
           "name": "qtbase",
+          "default-features": false,
           "features": ["widgets"]
         }
       ]
