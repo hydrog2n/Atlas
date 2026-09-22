@@ -1,0 +1,31 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Prepare Atlas CLI",
+            "type": "process",
+            "command": "cmd.exe",
+            "args": [
+                "/d",
+                "/s",
+                "/c",
+                "call C:\\PROGRA~1\\MICROS~3\\18\\Community\\Common7\\Tools\\VsDevCmd.bat -arch=amd64 -host_arch=amd64 && cmake --preset headless-vcpkg && cmake --build --preset headless-vcpkg && ctest --preset headless-vcpkg --output-on-failure"
+            ],
+            "problemMatcher": [],
+            "hide": true
+        },
+        {
+            "label": "Prepare Atlas GUI",
+            "type": "process",
+            "command": "cmd.exe",
+            "args": [
+                "/d",
+                "/s",
+                "/c",
+                "call C:\\PROGRA~1\\MICROS~3\\18\\Community\\Common7\\Tools\\VsDevCmd.bat -arch=amd64 -host_arch=amd64 && set \"QT_ROOT=C:\\Qt\\6.11.2\\msvc2022_64\" && set \"VCPKG_ROOT=C:\\Users\\The Big H\\vcpkg\" && cmake --preset windows-qt-sdk && cmake --build --preset windows-qt-sdk && C:\\Qt\\6.11.2\\msvc2022_64\\bin\\windeployqt.exe build\\windows-qt-sdk\\atlas.exe"
+            ],
+            "problemMatcher": [],
+            "hide": true
+        }
+    ]
+}

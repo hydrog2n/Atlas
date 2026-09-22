@@ -8,7 +8,8 @@
   "configurePresets": [
     {
       "name": "windows-vcpkg",
-      "displayName": "Windows with vcpkg",
+      "displayName": "Deprecated: Windows with vcpkg Qt",
+      "hidden": true,
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/build/${presetName}",
       "cacheVariables": {
@@ -29,16 +30,28 @@
         "ATLAS_BUILD_TESTS": "ON",
         "VCPKG_MANIFEST_FEATURES": ""
       }
+    },
+    {
+      "name": "windows-qt-sdk",
+      "displayName": "Windows with official Qt SDK",
+      "inherits": "windows-vcpkg",
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "cacheVariables": {
+        "ATLAS_BUILD_UI": "ON",
+        "ATLAS_BUILD_TESTS": "ON",
+        "VCPKG_MANIFEST_FEATURES": "",
+        "CMAKE_PREFIX_PATH": "$env{QT_ROOT}"
+      }
     }
   ],
   "buildPresets": [
     {
-      "name": "windows-vcpkg",
-      "configurePreset": "windows-vcpkg"
-    },
-    {
       "name": "headless-vcpkg",
       "configurePreset": "headless-vcpkg"
+    },
+    {
+      "name": "windows-qt-sdk",
+      "configurePreset": "windows-qt-sdk"
     }
   ],
   "testPresets": [

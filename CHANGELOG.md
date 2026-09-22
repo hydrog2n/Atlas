@@ -109,4 +109,10 @@ Result:
 
 ## Unreleased / Future entries
 
+### Build workflow note
+
+- Deprecated the `windows-vcpkg` Qt desktop preset after repeated configuration stalls and failures while building Qt through vcpkg.
+- Made the official Qt SDK preset the supported Windows desktop build path.
+- Kept `headless-vcpkg` as the supported domain, CLI, and test path.
+
 Entries for future versions will be added here as each version is completed and validated. Keep each entry concise, evidence-based, and aligned with the project roadmap and canonical specification.
