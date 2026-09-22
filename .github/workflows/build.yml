@@ -17,6 +17,8 @@ jobs:
         shell: pwsh
         run: |
           git clone --depth 1 https://github.com/microsoft/vcpkg.git "$env:VCPKG_ROOT"
+          git -C "$env:VCPKG_ROOT" fetch --depth 1 origin 5f96cd15fd745122cf27e0524606d6c1efc5fd07
+          git -C "$env:VCPKG_ROOT" checkout --detach 5f96cd15fd745122cf27e0524606d6c1efc5fd07
           & "$env:VCPKG_ROOT\bootstrap-vcpkg.bat" -disableMetrics
 
       - name: Install dependencies
@@ -28,6 +30,7 @@ jobs:
         run: |
           for /f "usebackq tokens=*" %%i in (`"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath`) do set "VS_INSTALL=%%i"
           call "%VS_INSTALL%\Common7\Tools\VsDevCmd.bat" -arch=amd64 -host_arch=amd64
+          set "VCPKG_ROOT=%GITHUB_WORKSPACE%\vcpkg"
           cmake --preset headless-vcpkg
 
       - name: Build
@@ -35,6 +38,7 @@ jobs:
         run: |
           for /f "usebackq tokens=*" %%i in (`"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath`) do set "VS_INSTALL=%%i"
           call "%VS_INSTALL%\Common7\Tools\VsDevCmd.bat" -arch=amd64 -host_arch=amd64
+          set "VCPKG_ROOT=%GITHUB_WORKSPACE%\vcpkg"
           cmake --build --preset headless-vcpkg
 
       - name: Test
@@ -42,4 +46,5 @@ jobs:
         run: |
           for /f "usebackq tokens=*" %%i in (`"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath`) do set "VS_INSTALL=%%i"
           call "%VS_INSTALL%\Common7\Tools\VsDevCmd.bat" -arch=amd64 -host_arch=amd64
+          set "VCPKG_ROOT=%GITHUB_WORKSPACE%\vcpkg"
           ctest --preset headless-vcpkg --output-on-failure

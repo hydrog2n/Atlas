@@ -8,7 +8,7 @@ __pycache__/
 
 # Distribution / packaging
 .Python
-build/
+/vcpkg_installed/
 develop-eggs/
 dist/
 downloads/
@@ -160,9 +160,16 @@ cython_debug/
 #.idea/
 
 # Atlas build output
-build/
+/build/
 out/
-.vcpkg/
+/.vs/
+/.vcpkg/
+/vcpkg/
 CMakeUserPresets.json
 Testing/
 coverage/
+
+# Visual Studio and local CMake state
+*.suo
+*.user
+*.VC.db
