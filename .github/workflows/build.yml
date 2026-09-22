@@ -11,7 +11,7 @@ jobs:
       VCPKG_ROOT: ${{ github.workspace }}\vcpkg
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Install vcpkg
         shell: pwsh
