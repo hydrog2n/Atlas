@@ -1,0 +1,7 @@
+Execute Phase 1 for Atlas VERSION using `.DESIGN/agent-workflow/PHASE_1_ANALYZE_AND_PLAN.md` as your guide.
+
+Execute Phase 2 for Atlas VERSION using `.DESIGN/agent-workflow/PHASE_2_IMPLEMENT.md` as your guide.
+
+Execute Phase 3 for Atlas VERSION using `.DESIGN/agent-workflow/PHASE_3_VALIDATE_AND_FIX.md` as your guide.
+
+Execute Phase 4 for Atlas VERSION using `.DESIGN/agent-workflow/PHASE_4_RELEASE_INTEGRATION.md` as your guide.
