@@ -61,3 +61,20 @@ TEST(Project, R010_005_JsonParserPreservesUnknownExtensionData) {
     EXPECT_EQ(project.extensions()["tags"][1], "b");
     EXPECT_EQ(project.normalizedJson(), project.normalizedJson());
 }
+
+TEST(Project, R020_001_JsonParserPreservesUnknownFields) {
+    const auto json = R"({
+        "id": "project",
+        "schemaVersion": 1,
+        "units": "m",
+        "maps": [
+            {"id": "root-map", "parentMapId": null, "objects": [], "networkObjects": []}
+        ],
+        "futureField": {"value": 42}
+    })";
+
+    const auto project = atlas::domain::Project::fromJson(json);
+
+    EXPECT_EQ(project.unknownFields()["futureField"]["value"], 42);
+    EXPECT_EQ(project.normalizedJson(), project.normalizedJson());
+}

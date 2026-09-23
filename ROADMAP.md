@@ -10,6 +10,8 @@ date: 2026-09-20
 
 # Atlas Implementation Roadmap
 
+> **Current status:** `v0.2.0` — Project Package Persistence and Recovery — **Completed** · Next: `v0.3.0` — Command Transactions, Dependencies, and Validation
+
 ## Document purpose
 
 This roadmap converts the canonical **Atlas Master Design Specification Revision 3.0** into an implementation sequence that a human team or agentic coding system can execute without violating the source model. It defines what base functionality ships in each version, why that order exists, what must remain out of scope, which specification requirements first become enforceable, and what evidence is required before promotion.
@@ -311,6 +313,8 @@ No numbered acceptance criterion first closes here; use the release-specific gat
 v0.1.0 is complete only when every listed packet is merged, every gate is evidenced, all earlier release tests remain green, and the release can open and resave all retained compatibility fixtures without semantic drift.
 
 ## v0.2.0 Project Package Persistence and Recovery
+
+**Status:** Completed after the final Phase 2/3 implementation and validation loop.
 
 **Release class:** Internal foundation  
 **Primary goal:** Make authoritative source durable before complex editing exists, with migration, unknown-data preservation, atomic save, and recovery as first-class behavior.  

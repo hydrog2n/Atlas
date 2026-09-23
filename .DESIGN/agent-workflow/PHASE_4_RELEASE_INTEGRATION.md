@@ -63,6 +63,25 @@ Create/update `[VERSION]` release notes with applicable sections:
 6.  Confirm required release evidence is available.
 7.  Confirm no Atlas stop-ship condition remains.
 
+## Final Scope Lock
+
+Phase 4 is an integration and evidence-reconciliation phase, not a place to
+reinterpret the roadmap.
+
+- Read the original Phase 1 scope ledger, the final Phase 2 reconciliation,
+    and the final Phase 3 result together.
+- Do not declare a release complete when any in-scope packet, ship item, CORE
+    requirement, acceptance criterion, release gate, compatibility fixture, or
+    earlier-release regression is partial, unvalidated, or merely simulated
+    without the evidence required by the roadmap.
+- A green build and passing tests are necessary but not sufficient. The
+    release status must match the roadmap's version-completion statement.
+- If the ledger and implementation disagree, report `Release complete: no`
+    and stop. Do not rewrite the roadmap, specification, or ledger to make the
+    implementation appear complete.
+- Preserve independent schema, geometry, exporter, and plugin versions; only
+    propagate the application version during release integration.
+
 Do not alter tests, architecture, fixtures, or canonical documentation
 merely to make the release appear complete.
 
@@ -84,6 +103,7 @@ Version: [VERSION]
 
 Release Integration:
 - Scope shipped:
+- Final scope-ledger reconciliation:
 - Application-version locations updated:
 - Independent compatibility versions changed:
 - Changelog/release notes updated:
@@ -97,6 +117,7 @@ Final Verification:
 - Release gates confirmed:
 - Release evidence status:
 - Stop-ship defects:
+- Unvalidated or partial roadmap items:
 
 Release Status:
 - Release complete: yes | no
@@ -106,3 +127,24 @@ Release Status:
 
 Declare the release complete only when the applicable release gates and
 required evidence are demonstrated.
+
+## Release Development Log
+
+After producing the Required Completion Report, append that report to the existing release log:
+
+`.DESIGN/agent-workflow/logs/[VERSION].md`
+
+Do not replace or modify earlier phase records.
+
+Append:
+
+---
+
+## Phase 4 — Release Integration
+
+<insert the complete Phase 4 Required Completion Report here>
+
+RULES:
+
+The report written to the log must match the report returned to the user. Preserve all earlier phase records exactly. The completed log serves as the development and release-process record for Atlas [VERSION].
+If the expected release log does not exist, stop and report the missing development history rather than silently creating an incomplete log.

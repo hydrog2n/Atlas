@@ -47,15 +47,31 @@ Project Project::fromJson(const std::string& jsonText) {
         throw std::invalid_argument("Project extensions must be an object.");
     }
 
+    // Keep fields outside the current schema instead of silently dropping them.
+    nlohmann::json unknownFields = nlohmann::json::object();
+    for (const auto& [key, value] : parsed.items()) {
+        if (key != "id" && key != "schemaVersion" && key != "units" && key != "maps" && key != "extensions") {
+            unknownFields[key] = value;
+        }
+    }
+
     return Project(
         parsed["id"].get<std::string>(),
         Map{rootMapJson["id"].get<std::string>()},
-        std::move(extensions));
+        std::move(extensions),
+        std::move(unknownFields));
 }
 
 // Store the project identity and extension data in the class.
-Project::Project(std::string projectId, Map rootMap, nlohmann::json extensions)
-    : id_(std::move(projectId)), rootMap_(std::move(rootMap)), extensions_(std::move(extensions)) {}
+Project::Project(
+    std::string projectId,
+    Map rootMap,
+    nlohmann::json extensions,
+    nlohmann::json unknownFields)
+    : id_(std::move(projectId)),
+      rootMap_(std::move(rootMap)),
+      extensions_(std::move(extensions)),
+      unknownFields_(std::move(unknownFields)) {}
 
 const std::string& Project::id() const noexcept {
     return id_;
@@ -69,10 +85,15 @@ const nlohmann::json& Project::extensions() const noexcept {
     return extensions_;
 }
 
+const nlohmann::json& Project::unknownFields() const noexcept {
+    return unknownFields_;
+}
+
 // Serialize the project into a canonical JSON format.
 std::string Project::normalizedJson() const {
     nlohmann::ordered_json normalized = {
         {"id", id_},
+        {"type", "core.Project"},
         {"schemaVersion", 1},
         {"units", "m"},
         {"maps", nlohmann::ordered_json::array({ normalizeRootMap(rootMap_) })}
@@ -80,6 +101,11 @@ std::string Project::normalizedJson() const {
 
     if (!extensions_.empty()) {
         normalized["extensions"] = extensions_;
+    }
+
+    // Unknown data is written back under its original key; this code does not reinterpret it.
+    for (const auto& [key, value] : unknownFields_.items()) {
+        normalized[key] = value;
     }
 
     return normalized.dump(2) + "\n";

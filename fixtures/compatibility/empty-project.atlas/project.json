@@ -1,0 +1,14 @@
+{
+  "id": "00000000-0000-4000-8000-000000000001",
+  "type": "core.Project",
+  "schemaVersion": 1,
+  "units": "m",
+  "maps": [
+    {
+      "id": "00000000-0000-4000-8000-000000000002",
+      "parentMapId": null,
+      "objects": [],
+      "networkObjects": []
+    }
+  ]
+}

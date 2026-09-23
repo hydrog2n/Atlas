@@ -4,7 +4,7 @@
 
 Atlas is a standalone, game-agnostic editor for designing fictional and simulated worlds in real-world units. It combines direct vector drawing, parametric road construction, lane-level transport networks, hierarchical maps, and extensible semantic data in one 2D-first authoring environment.
 
-> **Current version: `v0.1.2`** — official Qt SDK workflow and VS Code run/debug integration
+> **Current version: `v0.2.0`** — project package persistence and recovery
 
 Atlas remains in the v0.1.x foundation phase, but the project now includes the first build-and-test stabilization pass for the Windows toolchain. The current release keeps the domain kernel in place while correcting the CI build environment so the foundation remains reproducible and verifiable.
 
@@ -81,8 +81,8 @@ The roadmap is capability-based. Exact contents may evolve as implementation and
 | --- | --- | --- | --- |
 | `v0.1.0` | Domain kernel and engineering contract | Stable typed records, canonical IDs and units, ownership validation, deterministic normalization, module boundaries, and conformance foundations | Completed |
 | `v0.1.1` | CI/toolchain stabilization | Corrected Windows build environment, Visual Studio developer-shell initialization, and reproducible CI validation for the foundation build | Completed |
-| `v0.1.2` | Desktop build workflow | Official Qt SDK desktop build, Qt runtime deployment, and VS Code run/debug integration | **Current** |
-| `v0.2.0` | Project package persistence and recovery | Canonical packages, deterministic serialization, atomic save, autosave, recovery, migrations, and unknown-data preservation | Planned |
+| `v0.1.2` | Desktop build workflow | Official Qt SDK desktop build, Qt runtime deployment, and VS Code run/debug integration | Completed |
+| `v0.2.0` | Project package persistence and recovery | Canonical packages, deterministic serialization, atomic save, checkpoints, recovery, migrations, and unknown-data preservation | **Current** |
 | `v0.3.0` | Command transactions, dependencies, and validation | Previewable commands, commit/cancel, undo/redo, dependency invalidation, incremental diagnostics, and stale-result protection | Planned |
 | `v0.4.0` | Canvas drafting and generic object editing | Infinite real-scale canvas, generic geometry, layers and levels, references, selection, inspection, and keyboard workflows | Planned |
 | `v0.5.0` | RoadSpline stationing and derived geometry | Road splines, station anchors, segments, deterministic edits, derived envelopes, and geometry diagnostics | Planned |
@@ -103,27 +103,27 @@ The roadmap is capability-based. Exact contents may evolve as implementation and
 
 Potential future work includes advanced GIS and OpenStreetMap-derived imports, traffic and route simulation, derived 3D previews, collaborative editing, scripting and automation, procedural city generation, constraint-assisted interchange design, and live game-engine synchronization.
 
-## Current Development Status — `v0.1.2`
+## Current Development Status — `v0.2.0`
 
-Atlas is still in the foundational release train, and the current patch-level release focuses on a reliable Windows desktop build and a simpler developer workflow.
+Atlas is still in the foundational release train, and the current release makes authoritative project data durable through an inspectable package format with recovery and migration behavior.
 
 **Current focus**
 
 - Preserve the domain kernel and conformance suite.
-- Use the official Qt SDK for the Windows desktop build instead of building Qt through vcpkg.
-- Provide VS Code Run and Debug profiles for the CLI and desktop application.
+- Support canonical `.atlas` directory packages with deterministic manifests and authoritative content hashes.
+- Provide headless create, inspect, recover, and migrate workflows.
+- Preserve unknown project data and protect newer schema packages from accidental overwrite.
 - Maintain the implementation baseline recorded in [ADR-0001](.DESIGN/adr/ADR-0001-technology-baseline.md): C++23, Qt 6 Widgets, CMake, vcpkg, GoogleTest, and deterministic JSON source records.
 - Keep architecture decisions, requirement-to-test traceability, and the decision backlog aligned with the project’s release scope.
 
 **Not yet part of the current release**
 
-- Project package persistence, migration, autosave, and recovery
 - Command transactions, undo/redo, dependency scheduling, and incremental validation
 - Interactive canvas and generic geometry editing
 - Road, lane, junction, elevation, submap, prefab, and procedural authoring
 - Stable import/export or plugin APIs and production performance guarantees
 
-The next milestone is **`v0.2.0` — Project package persistence and recovery**, which makes authoritative source data durable before complex editing begins.
+The next milestone is **`v0.3.0` — Command transactions, dependencies, and validation**.
 
 ## Project Boundaries
 

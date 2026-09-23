@@ -13,6 +13,44 @@ The format follows a release-focused pattern:
 
 ---
 
+## v0.2.0 - 2026-09-22
+
+### Added
+
+- Canonical inspectable `.atlas` directory packages with manifests, explicit record envelopes, root-map records, reserved asset/export/cache directories, and deterministic hashes for every generated authoritative file.
+- Qt-independent persistence APIs and headless `create`, `inspect`, `recover`, and `migrate` workflows.
+- Checkpoint rotation, recovery loading, save-failure simulation, schema migration reporting, and newer-schema read-only loading.
+- Unknown project-field preservation and bounded malformed-input handling.
+- Retained `empty-project` compatibility fixture with load-resave semantic-drift coverage.
+
+### Changed
+
+- Promoted v0.2.0 to the current release and moved v0.1.2 to completed history.
+
+### Fixed
+
+- Preserved previous valid packages when staged saves encounter simulated filesystem or process failures.
+- Rejected tampered authoritative content, unsafe paths, malformed packages, missing files, and oversized JSON records.
+
+### Testing / Validation
+
+- 26 out of 26 headless tests passed.
+- Official Qt desktop configure and build passed.
+- CLI persistence workflows passed.
+- Architecture governance, diagnostics, and whitespace checks passed.
+
+### Compatibility / Migration
+
+- Schema 0 to schema 1 migration reports and rewrites are supported.
+- Newer unsupported schemas can be loaded read-only and cannot be overwritten.
+- Standalone v0.1 normalized JSON remains a conformance/test representation, not a legacy project import format.
+
+### Known Limitations
+
+- Command transactions, undo/redo, interactive editing, road authoring, and production export remain planned for later releases.
+
+---
+
 ## v0.1.2 - 2026-09-22
 
 ### Release scope

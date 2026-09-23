@@ -44,6 +44,42 @@ Prepare a technically sound implementation plan for Atlas
 7.  Map each planned change to its requirement/work packet and intended
     validation.
 
+## Scope Control and Release Ledger
+
+Before declaring the Phase 1 gate ready, create a release-scope ledger from
+the exact roadmap section for `[VERSION]`. The ledger is the controlling
+contract for Phases 2 through 4.
+
+- List every roadmap work packet, ship-in-version item, explicit non-goal,
+    CORE requirement, acceptance criterion, release gate, and compatibility
+    fixture required by `[VERSION]`.
+- For each item, record its owner, planned implementation files or module,
+    required test or evidence, and one of: `planned`, `implemented`,
+    `validated`, or `blocked`.
+- Mark an item `validated` only when an executable check, retained fixture,
+    or documented evidence demonstrates the exact requirement. Passing nearby
+    tests is not evidence for a missing packet or gate.
+- Do not collapse partial packet work into a complete release claim. A packet
+    is complete only when every objective, dependency, test obligation, and
+    release-gate contribution listed by the roadmap is implemented and
+    evidenced.
+- Treat the roadmap's version-completion statement as a hard gate. If any
+    listed packet, gate, compatibility fixture, or earlier-release regression
+    is incomplete, set the Phase 1 gate to `Ready to implement: no` for release
+    completion, or explicitly label the plan as an incremental sub-slice that
+    cannot promote the release.
+- Separate two decisions in the report: `ready to implement` for the planned
+    work packet and `ready for release integration` for the entire version.
+    Phase 2 may implement a useful vertical slice, but it must not imply that
+    the roadmap version is complete unless the ledger is fully validated.
+- Do not begin Phase 4 from a green build alone. Phase 4 must reconcile the
+    ledger, implementation, tests, fixtures, documentation, and release gates;
+    any mismatch is a failed release gate and requires another scoped Phase 2
+    and Phase 3 cycle.
+- Keep the ledger in the Phase 1 report and development log. Later phases may
+    append status and evidence, but must not silently rewrite the original
+    scope, non-goals, or completion conditions.
+
 Flag changes to authoritative ownership, stable identity, units,
 persisted meaning, migration guarantees, deterministic semantics, or
 other CORE invariants. If requirements conflict or an architectural
@@ -70,6 +106,7 @@ Repository State:
 
 Release Scope:
 - Objective:
+- Scope ledger:
 - In scope:
 - Explicit non-goals:
 - Roadmap packets:
@@ -79,6 +116,7 @@ Release Scope:
 
 Plan:
 - Implementation steps:
+- Ledger ownership and evidence plan:
 - Tests required:
 - Documentation/versioning impact:
 - Persistence/compatibility impact:
@@ -94,3 +132,27 @@ Phase Gate:
 
 Report only evidence established during this phase. Do not claim
 implementation or validation that has not occurred.
+
+## Release Development Log
+
+After producing the Required Completion Report, write that report to:
+
+`.DESIGN/agent-workflow/logs/LOG_[VERSION].md`
+
+Create the `logs` directory if it does not exist.
+
+Phase 1 initializes the development log for this release. If the `[VERSION].md` log already exists, **replace its contents** rather than appending to it.
+
+Use this structure:
+
+# Atlas [VERSION] Development Log
+
+This log records the agent-assisted development and release workflow for Atlas [VERSION].
+
+## Phase 1 — Analyze & Plan
+
+<insert the complete Phase 1 Required Completion Report here>
+
+RULES:
+
+The report written to the log must match the report returned to the user. Do not omit failed, blocked, incomplete, or non-applicable findings.

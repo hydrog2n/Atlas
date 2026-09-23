@@ -5,3 +5,5 @@ Execute Phase 2 for Atlas VERSION using `.DESIGN/agent-workflow/PHASE_2_IMPLEMEN
 Execute Phase 3 for Atlas VERSION using `.DESIGN/agent-workflow/PHASE_3_VALIDATE_AND_FIX.md` as your guide.
 
 Execute Phase 4 for Atlas VERSION using `.DESIGN/agent-workflow/PHASE_4_RELEASE_INTEGRATION.md` as your guide.
+
+Atlas [VERSION] is not ready for release integration. Use the latest Phase 3 results to identify all remaining gaps, rerun Phase 2 using .DESIGN/agent-workflow/PHASE_2_IMPLEMENT.md to resolve them, then rerun Phase 3 using .DESIGN/agent-workflow/PHASE_3_VALIDATE_AND_FIX.md. Repeat the Phase 2 → Phase 3 cycle until Phase 3 reports Ready for release integration: yes. Do not proceed to Phase 4. During this loop, do not append intermediate or failed Phase 2/3 reports to the release log; once validation passes, record only the final successful Phase 2 and Phase 3 reports, replacing any previously logged Phase 2/3 reports for this release.

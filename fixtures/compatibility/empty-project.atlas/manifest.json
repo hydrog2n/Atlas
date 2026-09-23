@@ -1,0 +1,21 @@
+{
+  "format": "atlas.project",
+  "schemaVersion": 1,
+  "projectId": "00000000-0000-4000-8000-000000000001",
+  "units": "m",
+  "requiredFeatures": [],
+  "rootMapIds": [
+    "00000000-0000-4000-8000-000000000002"
+  ],
+  "authoritativeFiles": {
+    "maps/00000000-0000-4000-8000-000000000002/map.json": "fnv1a-64:396b3318fa9d28e5",
+    "maps/00000000-0000-4000-8000-000000000002/network.json": "fnv1a-64:8a8fc050dc78239f",
+    "maps/00000000-0000-4000-8000-000000000002/objects.json": "fnv1a-64:8a8fc050dc78239f",
+    "project.json": "fnv1a-64:63ff97a3e3cf0fbb"
+  },
+  "referenceDescriptors": [],
+  "reverseReferences": {},
+  "generatorVersions": {
+    "atlas": "0.2.0"
+  }
+}

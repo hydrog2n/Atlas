@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.25)
 # This is the top-level build definition for the Atlas project.
 # It tells CMake which language we use, which components to build,
 # and how the project is organized into libraries, executables, and tests.
-project(Atlas VERSION 0.1.2 LANGUAGES CXX)
+project(Atlas VERSION 0.2.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -33,9 +33,20 @@ target_include_directories(atlas_domain
 target_link_libraries(atlas_domain PUBLIC nlohmann_json::nlohmann_json)
 target_compile_features(atlas_domain PUBLIC cxx_std_23)
 
+add_library(atlas_persistence STATIC
+    src/atlas/persistence/package.cpp
+)
+# Persistence depends on the domain model but remains independent of Qt and the UI.
+target_include_directories(atlas_persistence
+    PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+target_link_libraries(atlas_persistence PUBLIC atlas_domain)
+target_compile_features(atlas_persistence PUBLIC cxx_std_23)
+
 # The command-line executable is a tiny test/demo runner for the domain model.
 add_executable(atlas_cli src/atlas/cli/main.cpp)
-target_link_libraries(atlas_cli PRIVATE atlas_domain)
+target_link_libraries(atlas_cli PRIVATE atlas_persistence)
 
 if(ATLAS_BUILD_UI)
     # The desktop shell is the user-facing application layer.
@@ -62,10 +73,23 @@ if(ATLAS_BUILD_TESTS)
     )
     include(GoogleTest)
     gtest_discover_tests(atlas_domain_tests)
+
+    add_executable(atlas_persistence_tests
+        tests/atlas/persistence/package_tests.cpp
+    )
+    target_link_libraries(atlas_persistence_tests
+        PRIVATE
+            atlas_persistence
+            GTest::gtest_main
+    )
+    target_compile_definitions(atlas_persistence_tests PRIVATE
+        ATLAS_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
+    )
+    gtest_discover_tests(atlas_persistence_tests)
 endif()
 
 # These installation rules make the app usable after a build.
-install(TARGETS atlas_cli RUNTIME DESTINATION bin)
+install(TARGETS atlas_cli atlas_persistence RUNTIME DESTINATION bin)
 if(ATLAS_BUILD_UI)
     install(TARGETS atlas RUNTIME DESTINATION bin)
 endif()
