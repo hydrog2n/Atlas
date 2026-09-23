@@ -78,3 +78,22 @@ TEST(Project, R020_001_JsonParserPreservesUnknownFields) {
     EXPECT_EQ(project.unknownFields()["futureField"]["value"], 42);
     EXPECT_EQ(project.normalizedJson(), project.normalizedJson());
 }
+
+TEST(Project, R020_001_MapUnknownFieldsSurviveNormalization) {
+    const auto project = atlas::domain::Project::fromJson(R"({
+        "id": "project",
+        "schemaVersion": 1,
+        "units": "m",
+        "maps": [{
+            "id": "root-map",
+            "type": "core.Map",
+            "parentMapId": null,
+            "objects": [],
+            "networkObjects": [],
+            "futureMapField": {"enabled": true}
+        }]
+    })");
+
+    EXPECT_NE(project.normalizedJson().find("futureMapField"), std::string::npos);
+    EXPECT_EQ(project.rootMap().unknownFields["futureMapField"]["enabled"], true);
+}

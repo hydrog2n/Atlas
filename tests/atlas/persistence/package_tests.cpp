@@ -319,3 +319,59 @@ TEST(Package, R020_005_RetainedCompatibilityFixtureResavesWithoutDrift) {
 
     std::filesystem::remove_all(temporary, cleanupError);
 }
+
+TEST(Package, R020_001_ManifestListsExistingAuthoritativeFiles) {
+    TemporaryPackageDirectory temporary;
+    const auto packagePath = temporary.path() / "project.atlas";
+    atlas::persistence::Package::fromProject(
+        atlas::domain::Project::empty("project", "root-map")).save(packagePath);
+
+    const auto manifest = nlohmann::json::parse(
+        atlas::persistence::Package::fromProject(
+            atlas::domain::Project::empty("project", "root-map")).manifestJson());
+    for (const auto& [relativePath, hash] : manifest["authoritativeFiles"].items()) {
+        static_cast<void>(hash);
+        EXPECT_TRUE(std::filesystem::exists(packagePath / relativePath));
+    }
+}
+
+TEST(Package, R020_003_CheckpointRotationHonorsConfiguredCount) {
+    TemporaryPackageDirectory temporary;
+    const auto packagePath = temporary.path() / "project.atlas";
+    atlas::persistence::Package::fromProject(
+        atlas::domain::Project::empty("one", "root-map")).save(packagePath, {.checkpointCount = 2});
+    atlas::persistence::Package::fromProject(
+        atlas::domain::Project::empty("two", "root-map")).save(packagePath, {.checkpointCount = 2});
+    atlas::persistence::Package::fromProject(
+        atlas::domain::Project::empty("three", "root-map")).save(packagePath, {.checkpointCount = 2});
+
+    EXPECT_TRUE(std::filesystem::is_directory(packagePath.parent_path() / "project.atlas.checkpoint-0"));
+    EXPECT_TRUE(std::filesystem::is_directory(packagePath.parent_path() / "project.atlas.checkpoint-1"));
+    EXPECT_FALSE(std::filesystem::exists(packagePath.parent_path() / "project.atlas.checkpoint-2"));
+}
+
+TEST(Package, R020_004_MigrationDryRunDoesNotChangePackage) {
+    TemporaryPackageDirectory temporary;
+    const auto packagePath = temporary.path() / "project.atlas";
+    atlas::persistence::Package::fromProject(
+        atlas::domain::Project::empty("project", "root-map")).save(packagePath);
+    const auto before = atlas::persistence::Package::load(packagePath).project().normalizedJson();
+
+    const auto report = atlas::persistence::Package::migrate(packagePath, 1, true);
+
+    EXPECT_TRUE(report.dryRun);
+    EXPECT_EQ(atlas::persistence::Package::load(packagePath).project().normalizedJson(), before);
+}
+
+TEST(Package, R020_001_CacheDirectoryIsDisposable) {
+    TemporaryPackageDirectory temporary;
+    const auto packagePath = temporary.path() / "project.atlas";
+    atlas::persistence::Package::fromProject(
+        atlas::domain::Project::empty("project", "root-map")).save(packagePath);
+    std::ofstream cache(packagePath / "cache" / "derived.bin", std::ios::binary);
+    cache << "disposable";
+    cache.close();
+    std::filesystem::remove_all(packagePath / "cache");
+
+    EXPECT_EQ(atlas::persistence::Package::load(packagePath).project().id(), "project");
+}

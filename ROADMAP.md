@@ -316,6 +316,8 @@ v0.1.0 is complete only when every listed packet is merged, every gate is eviden
 
 **Status:** Completed after the final Phase 2/3 implementation and validation loop.
 
+Patch follow-up `v0.2.1` hardens the same persistence contract with nested unknown-data coverage, authoritative-file inventory checks, compatibility fixture replay, and expanded failure/limit tests. It does not introduce a new persisted schema.
+
 **Release class:** Internal foundation  
 **Primary goal:** Make authoritative source durable before complex editing exists, with migration, unknown-data preservation, atomic save, and recovery as first-class behavior.  
 **User-visible outcome:** A user can create, open, save, autosave, recover, inspect, and migrate a canonical project package without losing unknown extension data.

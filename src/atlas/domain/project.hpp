@@ -9,6 +9,7 @@ namespace atlas::domain {
 // A map is the smallest meaningful container in the project model.
 struct Map {
     std::string id;
+    nlohmann::json unknownFields = nlohmann::json::object();
 };
 
 // Project is the root object in the editable world data model.

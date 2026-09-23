@@ -11,12 +11,18 @@ namespace {
 
 // Canonical root-map shape used for deterministic serialization.
 nlohmann::ordered_json normalizeRootMap(const Map& rootMap) {
-    return nlohmann::ordered_json{
+    nlohmann::ordered_json normalized = {
         {"id", rootMap.id},
+        {"type", "core.Map"},
         {"parentMapId", nullptr},
         {"objects", nlohmann::ordered_json::array()},
         {"networkObjects", nlohmann::ordered_json::array()}
     };
+
+    for (const auto& [key, value] : rootMap.unknownFields.items()) {
+        normalized[key] = value;
+    }
+    return normalized;
 }
 
 } // namespace
@@ -42,6 +48,14 @@ Project Project::fromJson(const std::string& jsonText) {
         throw std::invalid_argument("Root map id is required.");
     }
 
+    nlohmann::json rootMapUnknownFields = nlohmann::json::object();
+    for (const auto& [key, value] : rootMapJson.items()) {
+        if (key != "id" && key != "type" && key != "parentMapId" &&
+            key != "objects" && key != "networkObjects") {
+            rootMapUnknownFields[key] = value;
+        }
+    }
+
     nlohmann::json extensions = parsed.value("extensions", nlohmann::json::object());
     if (!extensions.is_object()) {
         throw std::invalid_argument("Project extensions must be an object.");
@@ -57,7 +71,7 @@ Project Project::fromJson(const std::string& jsonText) {
 
     return Project(
         parsed["id"].get<std::string>(),
-        Map{rootMapJson["id"].get<std::string>()},
+        Map{rootMapJson["id"].get<std::string>(), std::move(rootMapUnknownFields)},
         std::move(extensions),
         std::move(unknownFields));
 }

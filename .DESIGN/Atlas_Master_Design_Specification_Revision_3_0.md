@@ -77,7 +77,7 @@ When two layers disagree, work stops at the conflict. The higher-authority docum
 - The canonical product name is **Atlas**. "Parametric World Cartography Editor" remains historical wording only.
 - The native package identity is `atlas.project`, conventionally stored as a directory or container ending in `.atlas`. The format identifier, schema version, application version, geometry-engine version, exporter version, and plugin API version are independent compatibility dimensions.
 - The Markdown edition is optimized for review, version control, and agent ingestion. The DOCX edition is a formatted distribution of the same normative content. A semantic difference between editions is a release-blocking documentation defect.
-- Atlas is currently at `v0.2.0`, focused on the domain kernel and project package persistence/recovery foundation. Interactive editing, road authoring, and production export remain later release capabilities and MUST NOT be represented as already shipped.
+- Atlas is currently at `v0.2.1`, focused on the domain kernel and hardened project package persistence/recovery foundation. Interactive editing, road authoring, and production export remain later release capabilities and MUST NOT be represented as already shipped.
 - The roadmap's `v0.1.0` through `v1.7.0` train is the adopted capability sequence. Its post-1.x entries remain provisional until each is approved through discovery and an ADR-backed commitment.
 - Every release archives an evidence bundle and is blocked by defined stop-ship defects. Feature completion without evidence is not release completion.
 - Agentic work is governed by explicit definitions of ready and done, a machine-readable task contract, mandatory stop conditions, and an evidence-based response contract.

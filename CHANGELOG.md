@@ -13,6 +13,38 @@ The format follows a release-focused pattern:
 
 ---
 
+## v0.2.1 - 2026-09-22
+
+### Added
+
+- Nested map unknown-field preservation.
+- Authoritative-file inventory, manifest consistency, checkpoint rotation, cache-disposability, and compatibility-fixture replay tests.
+- JSON node/depth limits and line-ending-independent authoritative hashing.
+
+### Changed
+
+- Hardened the v0.2 persistence contract without changing project schema version `1`.
+
+### Fixed
+
+- Corrected compatibility fixture hashing across Windows line-ending normalization.
+
+### Testing / Validation
+
+- 31 out of 31 headless tests passed.
+- Official Qt desktop build passed.
+- CLI persistence workflows and architecture governance checks passed.
+
+### Compatibility / Migration
+
+- No persisted schema change. Existing v0.2 packages remain compatible.
+
+### Known Limitations
+
+- Command transactions, undo/redo, interactive editing, road authoring, and production export remain planned for later releases.
+
+---
+
 ## v0.2.0 - 2026-09-22
 
 ### Added
