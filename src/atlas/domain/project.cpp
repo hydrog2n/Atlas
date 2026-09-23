@@ -88,18 +88,22 @@ Project::Project(
       unknownFields_(std::move(unknownFields)) {}
 
 const std::string& Project::id() const noexcept {
+    // The project ID is stable identity, not a display label.
     return id_;
 }
 
 const Map& Project::rootMap() const noexcept {
+    // Return the owning root map without copying authoritative data.
     return rootMap_;
 }
 
 const nlohmann::json& Project::extensions() const noexcept {
+    // Extensions are recognized opaque project-level data.
     return extensions_;
 }
 
 const nlohmann::json& Project::unknownFields() const noexcept {
+    // Unknown fields remain available for lossless round trips.
     return unknownFields_;
 }
 

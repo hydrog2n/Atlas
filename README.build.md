@@ -1,6 +1,6 @@
 # Building Atlas
 
-Atlas v0.3.0 uses C++23, Qt 6 Widgets, CMake, vcpkg manifest mode, and GoogleTest as defined by [ADR-0001](.DESIGN/adr/ADR-0001-technology-baseline.md). The supported Windows desktop build uses the official Qt SDK; the vcpkg Qt build is deprecated because Qt configuration through that path is unreliable in the current environment.
+Atlas v0.3.1 uses C++23, Qt 6 Widgets, CMake, vcpkg manifest mode, and GoogleTest as defined by [ADR-0001](.DESIGN/adr/ADR-0001-technology-baseline.md). The supported Windows desktop build uses the official Qt SDK; the vcpkg Qt build is deprecated because Qt configuration through that path is unreliable in the current environment.
 
 ## Prerequisites
 
@@ -9,6 +9,11 @@ Atlas v0.3.0 uses C++23, Qt 6 Widgets, CMake, vcpkg manifest mode, and GoogleTes
 - Ninja
 - vcpkg with `VCPKG_ROOT` set
 - Official Qt 6 SDK with the MSVC 64-bit kit installed
+
+On Windows, run these commands from an initialized Visual Studio x64 developer
+shell, or call `VsDevCmd.bat -arch=amd64 -host_arch=amd64` before configuring.
+The CMake cache records the compiler path but does not provide MSVC's standard
+library include and library environment on its own.
 
 ## Configure and build
 

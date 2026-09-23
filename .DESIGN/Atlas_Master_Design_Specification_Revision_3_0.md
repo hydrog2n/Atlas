@@ -35,6 +35,8 @@ This document is the source of truth for product meaning and technical invariant
 | Companion execution plan | Atlas Implementation Roadmap 1.0 |
 | Maintained representations | This Markdown source and its generated DOCX edition carry the same normative content |
 
+> **Current status:** Atlas is currently at `v0.3.1`, an incremental validation and test-hardening update to the deterministic command revisions, undo/redo, dependency invalidation, diagnostics, repair commands, and stale-result protection delivered in v0.3.0. Interactive canvas editing, road authoring, and production export remain later release capabilities and MUST NOT be represented as already shipped.
+
 # Document Control
 
 ## Revision History
@@ -77,7 +79,6 @@ When two layers disagree, work stops at the conflict. The higher-authority docum
 - The canonical product name is **Atlas**. "Parametric World Cartography Editor" remains historical wording only.
 - The native package identity is `atlas.project`, conventionally stored as a directory or container ending in `.atlas`. The format identifier, schema version, application version, geometry-engine version, exporter version, and plugin API version are independent compatibility dimensions.
 - The Markdown edition is optimized for review, version control, and agent ingestion. The DOCX edition is a formatted distribution of the same normative content. A semantic difference between editions is a release-blocking documentation defect.
-- Atlas is currently at `v0.3.0`, focused on deterministic command revisions, undo/redo, dependency invalidation, diagnostics, repair commands, and stale-result protection. Interactive canvas editing, road authoring, and production export remain later release capabilities and MUST NOT be represented as already shipped.
 - The roadmap's `v0.1.0` through `v1.7.0` train is the adopted capability sequence. Its post-1.x entries remain provisional until each is approved through discovery and an ADR-backed commitment.
 - Every release archives an evidence bundle and is blocked by defined stop-ship defects. Feature completion without evidence is not release completion.
 - Agentic work is governed by explicit definitions of ready and done, a machine-readable task contract, mandatory stop conditions, and an evidence-based response contract.
@@ -1153,7 +1154,7 @@ Atlas tracks compatibility across separate dimensions:
 |---|---|---|---|
 | `v0.1.0` | Domain Kernel and Engineering Contract | Stable typed records, IDs, units, ownership validation, deterministic normalization, module boundaries, and conformance foundations. | **Current** |
 | `v0.2.0` | Project Package Persistence and Recovery | Canonical packages, deterministic serialization, atomic save, autosave, recovery, migrations, and unknown-data preservation. | Planned |
-| `v0.3.0` | Command Transactions Dependencies and Validation | Previewable commands, commit and cancel, undo and redo, dependency invalidation, incremental diagnostics, and stale-result protection. | Planned |
+| `v0.3.0` | Command Transactions Dependencies and Validation | Previewable commands, commit and cancel, undo and redo, dependency invalidation, incremental diagnostics, and stale-result protection. | Completed |
 | `v0.4.0` | Canvas Drafting and Generic Object Editing | Infinite real-scale canvas, generic geometry, layers and levels, references, selection, inspection, and keyboard workflows. | Planned |
 | `v0.5.0` | RoadSpline Stationing and Derived Geometry | Road splines, station anchors, segments, deterministic edits, derived envelopes, and geometry diagnostics. | Planned |
 | `v0.6.0` | Lane Native Cross Sections and Stable Lineage | Physically scaled lanes and road elements, lane ports, cross-section editing, lineage, and deterministic reverse and reorder behavior. | Planned |

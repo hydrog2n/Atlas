@@ -2,6 +2,28 @@
 
 #include <gtest/gtest.h>
 
+#include <random>
+
+namespace {
+
+class InvalidPreconditionCommand final : public atlas::application::Command {
+public:
+    const char* name() const noexcept override { return "invalid-precondition"; }
+    std::optional<std::uint64_t> expectedRevision() const noexcept override { return 0; }
+    std::string coalesceKey() const override { return {}; }
+    std::vector<atlas::application::Diagnostic> validate(
+        const atlas::application::Revision& current) const override {
+        return {atlas::application::Diagnostic{
+            "VAL-CORE-002", atlas::application::Severity::error, {current.project.id()},
+            "Required reference is unresolved.", current.number, {"repair-project"}}};
+    }
+    atlas::application::Revision apply(const atlas::application::Revision& current) const override {
+        return current;
+    }
+};
+
+} // namespace
+
 TEST(CommandProcessor, PreviewDoesNotMutateLiveRevision) {
     const auto first = atlas::domain::Project::empty("first", "root-map");
     const auto second = atlas::domain::Project::empty("second", "root-map");
@@ -95,6 +117,33 @@ TEST(CommandProcessor, DependencyGraphReturnsUniqueDependents) {
     EXPECT_EQ(dependents[1], "diagnostics");
 }
 
+TEST(CommandProcessor, DependencyInvalidationOnlyTouchesAffectedRanges) {
+    atlas::application::DependencyGraph graph;
+    graph.addDependency("road", "near", atlas::application::StationRange{0.0, 10.0});
+    graph.addDependency("road", "far", atlas::application::StationRange{20.0, 30.0});
+    graph.addDependency("road", "global");
+
+    const auto affected = graph.dependentsFor(atlas::application::Invalidation{
+        "road", "geometry", 4, atlas::application::StationRange{8.0, 12.0}, {}});
+
+    ASSERT_EQ(affected.size(), 2);
+    EXPECT_EQ(affected[0], "near");
+    EXPECT_EQ(affected[1], "global");
+}
+
+TEST(CommandProcessor, OverlappingInvalidationsCoalesceWithoutMergingUnrelatedRanges) {
+    const auto coalesced = atlas::application::coalesceInvalidations({
+        {"road", "geometry", 5, atlas::application::StationRange{0.0, 10.0}, {}},
+        {"road", "geometry", 5, atlas::application::StationRange{8.0, 16.0}, {}},
+        {"road", "geometry", 5, atlas::application::StationRange{30.0, 40.0}, {}},
+        {"other", "geometry", 5, atlas::application::StationRange{0.0, 40.0}, {}}});
+
+    ASSERT_EQ(coalesced.size(), 3);
+    ASSERT_TRUE(coalesced[0].stationRange.has_value());
+    EXPECT_DOUBLE_EQ(coalesced[0].stationRange->start, 0.0);
+    EXPECT_DOUBLE_EQ(coalesced[0].stationRange->end, 16.0);
+}
+
 TEST(CommandProcessor, DestructiveImpactRequiresExplicitResolution) {
     const auto cancelled = atlas::application::resolveDestructiveImpact(
         {"source", "dependent"}, atlas::application::ImpactResolution::cancel);
@@ -104,6 +153,31 @@ TEST(CommandProcessor, DestructiveImpactRequiresExplicitResolution) {
     EXPECT_FALSE(cancelled.resolved);
     EXPECT_TRUE(accepted.resolved);
     EXPECT_EQ(accepted.affectedIds.size(), 2);
+}
+
+TEST(CommandProcessor, ReverseReferencesExposeRequiredAndOptionalDependents) {
+    atlas::application::ReverseReferenceIndex index;
+    index.addReference("source", "required-dependent", atlas::application::ReferenceStrength::required);
+    index.addReference("source", "optional-dependent", atlas::application::ReferenceStrength::optional);
+
+    EXPECT_EQ(index.dependentsOf("source"),
+        (std::vector<std::string>{"required-dependent", "optional-dependent"}));
+    EXPECT_EQ(index.requiredDependentsOf("source"),
+        (std::vector<std::string>{"required-dependent"}));
+}
+
+TEST(CommandProcessor, DestructiveImpactUsesReverseReferences) {
+    atlas::application::ReverseReferenceIndex index;
+    index.addReference("source", "dependent", atlas::application::ReferenceStrength::required);
+
+    const auto cancelled = atlas::application::resolveDestructiveImpact(
+        index, "source", atlas::application::ImpactResolution::cancel);
+    const auto deleted = atlas::application::resolveDestructiveImpact(
+        index, "source", atlas::application::ImpactResolution::deleteDependents);
+
+    EXPECT_FALSE(cancelled.resolved);
+    EXPECT_TRUE(deleted.resolved);
+    EXPECT_EQ(deleted.affectedIds, (std::vector<std::string>{"dependent"}));
 }
 
 TEST(CommandProcessor, RepairRunsThroughPreviewAndCommitPath) {
@@ -119,6 +193,32 @@ TEST(CommandProcessor, RepairRunsThroughPreviewAndCommitPath) {
     processor.commit(atlas::application::RepairProjectCommand(
         atlas::domain::Project::empty("repaired", "root-map"), 0));
     EXPECT_EQ(processor.current().project.id(), "repaired");
+}
+
+TEST(CommandProcessor, RepairCanBeUndoneAndRedone) {
+    atlas::application::CommandProcessor processor({
+        0, atlas::domain::Project::empty("broken", "root-map"), {}});
+
+    processor.commit(atlas::application::RepairProjectCommand(
+        atlas::domain::Project::empty("repaired", "root-map"), 0));
+    ASSERT_TRUE(processor.undo());
+    EXPECT_EQ(processor.current().project.id(), "broken");
+    ASSERT_TRUE(processor.redo());
+    EXPECT_EQ(processor.current().project.id(), "repaired");
+}
+
+TEST(CommandProcessor, InvalidPreviewIsDiagnosedAndCannotCommit) {
+    atlas::application::CommandProcessor processor({
+        0, atlas::domain::Project::empty("project", "root-map"), {}});
+
+    const auto preview = processor.preview(InvalidPreconditionCommand{});
+    ASSERT_EQ(preview.diagnostics.size(), 1);
+    EXPECT_EQ(preview.diagnostics.front().severity, atlas::application::Severity::error);
+    EXPECT_THROW(processor.commit(InvalidPreconditionCommand{}), std::runtime_error);
+    EXPECT_EQ(processor.current().number, 0);
+    EXPECT_FALSE(processor.canUndo());
+    ASSERT_EQ(processor.diagnostics().size(), 1);
+    EXPECT_EQ(processor.diagnostics().front().ruleId, "VAL-CORE-002");
 }
 
 TEST(CommandProcessor, FailedCommandLeavesRevisionAndHistoryUnchanged) {
@@ -155,4 +255,71 @@ TEST(CommandProcessor, DeterministicCommandSequenceCanBeFullyUndone) {
 
     EXPECT_EQ(processor.current().project.id(), "0");
     EXPECT_FALSE(processor.canUndo());
+}
+
+TEST(CommandProcessor, RebuildFailurePreservesSourceAndAddsRepairDiagnostic) {
+    atlas::application::CommandProcessor processor({
+        3, atlas::domain::Project::empty("project", "root-map"), {}});
+    const auto sourceBefore = processor.current().normalizedSource();
+
+    processor.recordRebuildFailure("project", "DEPS-CORE-004", "Geometry rebuild failed", {"repair-project"});
+
+    EXPECT_EQ(processor.current().normalizedSource(), sourceBefore);
+    ASSERT_EQ(processor.diagnostics().size(), 1);
+    const auto& diagnostic = processor.diagnostics().front();
+    EXPECT_EQ(diagnostic.severity, atlas::application::Severity::error);
+    EXPECT_EQ(diagnostic.affectedIds, (std::vector<std::string>{"project"}));
+    EXPECT_EQ(diagnostic.revision, 3);
+    EXPECT_EQ(diagnostic.repairIds, (std::vector<std::string>{"repair-project"}));
+}
+
+TEST(CommandProcessor, RebuildFailureDoesNotReplaceAnExistingGoodCache) {
+    atlas::application::CommandProcessor processor({
+        3, atlas::domain::Project::empty("project", "root-map"), {}});
+    ASSERT_TRUE(processor.acceptResult({"geometry", 3, "good", {"project"}}));
+
+    processor.recordRebuildFailure("project", "DEPS-CORE-004", "Geometry rebuild failed");
+
+    ASSERT_NE(processor.cachedResult("geometry"), nullptr);
+    EXPECT_EQ(*processor.cachedResult("geometry"), "good");
+}
+
+TEST(CommandProcessor, CacheResultsRequireTheCompleteDependencySet) {
+    atlas::application::CommandProcessor processor({
+        2, atlas::domain::Project::empty("project", "root-map"), {}});
+    processor.registerCacheDependencies("geometry", {"road", "map"});
+
+    EXPECT_FALSE(processor.acceptResult({"geometry", 2, "wrong", {"road"}}));
+    EXPECT_TRUE(processor.acceptResult({"geometry", 2, "right", {"map", "road"}}));
+    ASSERT_NE(processor.cachedResult("geometry"), nullptr);
+    EXPECT_EQ(*processor.cachedResult("geometry"), "right");
+}
+
+TEST(CommandProcessor, DuplicateCurrentResultsAreDeterministic) {
+    atlas::application::CommandProcessor processor({
+        2, atlas::domain::Project::empty("project", "root-map"), {}});
+    const atlas::application::VersionedResult result{"geometry", 2, "same", {"project"}};
+
+    EXPECT_TRUE(processor.acceptResult(result));
+    EXPECT_TRUE(processor.acceptResult(result));
+    EXPECT_EQ(*processor.cachedResult("geometry"), "same");
+}
+
+TEST(CommandProcessor, FixedSeedCommandSequenceFullyRestoresSourceAndSelection) {
+    const atlas::application::Revision initial{
+        0, atlas::domain::Project::empty("0", "root-map"), {{"selected", "0"}}};
+    atlas::application::CommandProcessor processor(initial);
+    std::mt19937 generator(0xA71A5u);
+    std::uniform_int_distribution<int> projectId(1, 1000);
+
+    for (int index = 0; index < 50; ++index) {
+        const auto id = std::to_string(projectId(generator));
+        processor.commit(atlas::application::RepairProjectCommand(
+            atlas::domain::Project::empty(id, "root-map"), processor.current().number));
+    }
+    while (processor.canUndo()) ASSERT_TRUE(processor.undo());
+
+    EXPECT_EQ(processor.current().normalizedSource(), initial.normalizedSource());
+    EXPECT_EQ(processor.current().selection, initial.selection);
+    EXPECT_EQ(processor.current().number, initial.number);
 }

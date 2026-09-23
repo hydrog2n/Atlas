@@ -13,6 +13,40 @@ The format follows a release-focused pattern:
 
 ---
 
+## v0.3.1 - 2026-09-23
+
+### Added
+
+- Range-scoped dependency invalidation and overlapping invalidation coalescing tests.
+- Reverse-reference analysis for required and optional destructive impacts.
+- Structural precondition diagnostics, rebuild-failure isolation, cache dependency validation, and fixed-seed undo property coverage.
+
+### Changed
+
+- Promoted the v0.3 command foundation audit and test-hardening update to the current application release.
+- Documented Visual Studio developer-shell initialization for reproducible Windows builds.
+
+### Fixed
+
+- Corrected the release build workflow so MSVC standard-library headers are available during CMake builds.
+
+### Testing / Validation
+
+- 53 out of 53 headless tests passed.
+- Official Qt configure/build and `windeployqt` deployment passed.
+- Architecture governance and `git diff --check` passed.
+
+### Compatibility / Migration
+
+- No project package schema change; schema version remains `1`.
+- Existing v0.2.1 packages and compatibility fixtures remain supported.
+
+### Known Limitations
+
+- No road-specific commands, optimized multithreaded scheduler, plugin mutation boundary, interactive canvas workflow, or persisted command-history save boundary.
+
+---
+
 ## v0.3.0 - 2026-09-22
 
 ### Added

@@ -26,6 +26,7 @@ struct SaveOptions {
 };
 
 struct LoadOptions {
+    // Newer schemas may be inspected but never rewritten by this application version.
     bool allowNewerSchemaReadOnly = false;
 };
 
@@ -61,7 +62,9 @@ public:
     // Save through a sibling staging directory before replacing the existing package.
     void save(const std::filesystem::path& packagePath, SaveOptions options = {}) const;
 
+    // Return the authoritative project snapshot held by this package object.
     const domain::Project& project() const noexcept;
+    // Return a deterministic manifest for inspection and diagnostics.
     std::string manifestJson() const;
 
 private:

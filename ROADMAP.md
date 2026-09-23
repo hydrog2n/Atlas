@@ -10,7 +10,7 @@ date: 2026-09-20
 
 # Atlas Implementation Roadmap
 
-> **Current status:** `v0.3.0` — Command Transactions, Dependencies, and Validation — **Completed** · Next: `v0.4.0` — Canvas Drafting and Generic Object Editing
+> **Current status:** `v0.3.1` — v0.3 Validation Audit and Test Hardening — **Completed** · Next: `v0.4.0` — Canvas Drafting and Generic Object Editing
 
 ## Document purpose
 
@@ -27,6 +27,7 @@ The recommended release train is:
 | v0.1.0 | Domain Kernel and Engineering Contract | A headless executable or library can create an empty Project and Map, create stable typed records in real-world units, validate basic ownership, and emit deterministic normalized state. |
 | v0.2.0 | Project Package Persistence and Recovery | A user can create, open, save, autosave, recover, inspect, and migrate a canonical project package without losing unknown extension data. |
 | v0.3.0 | Command Transactions Dependencies and Validation | Generic object and property edits can be previewed, committed, cancelled, undone, redone, persisted, and rebuilt without allowing background work to corrupt authoritative state. |
+| v0.3.1 | v0.3 Validation Audit and Test Hardening | The v0.3 command foundation gains expanded invalidation, reference, precondition, rebuild, cache, repair, and deterministic undo evidence. |
 | v0.4.0 | Canvas Drafting and Generic Object Editing | A user can navigate an infinite real-scale canvas, create and edit generic geometry, organize it into layers and levels, calibrate references, inspect objects, and complete the primary shell workflows by keyboard. |
 | v0.5.0 | RoadSpline Stationing and Derived Geometry | A user can draw, edit, reverse, measure, split, and merge road corridors while anchors remap deterministically and derived envelopes remain disposable and reproducible. |
 | v0.6.0 | Lane Native Cross Sections and Stable Lineage | A user can author physically scaled lanes, medians, shoulders, sidewalks, and custom elements; reorder or edit them without breaking IDs; and inspect derived lane geometry and ports. |

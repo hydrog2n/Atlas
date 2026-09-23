@@ -43,6 +43,7 @@ std::string contentHash(const std::string& content) {
 }
 
 void writeJson(const std::filesystem::path& path, const json& value) {
+    // Serialize one canonical JSON record and verify that the stream flushes.
     std::ofstream output(path, std::ios::binary | std::ios::trunc);
     if (!output) {
         throw std::runtime_error("Unable to write package file: " + path.string());
@@ -55,6 +56,7 @@ void writeJson(const std::filesystem::path& path, const json& value) {
 }
 
 void validateJsonLimits(const json& value) {
+    // Walk parsed JSON recursively to bound memory-amplifying input shapes.
     std::size_t nodeCount = 0;
     std::function<void(const json&, std::size_t)> visit = [&](const json& node, std::size_t depth) {
         if (++nodeCount > maximumJsonNodes || depth > maximumJsonDepth) {
@@ -73,6 +75,7 @@ void validateJsonLimits(const json& value) {
 }
 
 json readJson(const std::filesystem::path& path) {
+    // Read a bounded JSON file and convert parser failures into package errors.
     std::error_code sizeError;
     const auto size = std::filesystem::file_size(path, sizeError);
     if (sizeError || size > maximumJsonBytes) {
@@ -125,7 +128,7 @@ json makeManifest(
         {"authoritativeFiles", authoritativeHashes},
         {"referenceDescriptors", json::array()},
         {"reverseReferences", json::object()},
-        {"generatorVersions", json{{"atlas", "0.3.0"}}}
+        {"generatorVersions", json{{"atlas", "0.3.1"}}}
     };
 }
 
@@ -149,6 +152,7 @@ void validateManifest(
 }
 
 std::string readFileText(const std::filesystem::path& path) {
+    // Read raw authoritative bytes so their manifest hash can be checked exactly.
     std::ifstream input(path, std::ios::binary);
     if (!input) {
         throw std::invalid_argument("Unable to read package file: " + path.string());
@@ -202,19 +206,24 @@ void rotateCheckpoint(const std::filesystem::path& packagePath, std::size_t coun
 } // namespace
 
 Package Package::fromProject(const domain::Project& project) {
+    // Wrap the domain snapshot without giving persistence ownership of mutation.
     return Package(project);
 }
 
 Package Package::load(const std::filesystem::path& packagePath, LoadOptions options) {
+    // Load validates the package before exposing its project to callers.
     rejectUnsafePackagePath(packagePath);
+    // A package must be an existing directory before any record is read.
     if (!std::filesystem::is_directory(packagePath)) {
         throw std::invalid_argument("Package path is not a directory: " + packagePath.string());
     }
 
+    // Read the manifest and source independently so identity and content hashes can be checked.
     const auto manifest = readJson(packagePath / "manifest.json");
     const auto project = domain::Project::fromJson(readJson(packagePath / "project.json").dump());
     const auto packageSchema = manifest.value("schemaVersion", 0);
     const bool newerSchema = packageSchema > schemaVersion;
+    // Newer schemas may be inspected only when the caller explicitly allows read-only mode.
     if (newerSchema && !options.allowNewerSchemaReadOnly) {
         throw std::invalid_argument("Package uses a newer unsupported schema version.");
     }
@@ -227,9 +236,11 @@ MigrationReport Package::migrate(
     const std::filesystem::path& packagePath,
     int targetSchema,
     bool dryRun) {
+    // Migration reports unsupported paths without mutating the source package.
     rejectUnsafePackagePath(packagePath);
     const auto manifest = readJson(packagePath / "manifest.json");
     const int sourceSchema = manifest.value("schemaVersion", 0);
+    // Reject migration requests that have no supported version direction.
     if (targetSchema < sourceSchema || targetSchema > schemaVersion || sourceSchema < 0) {
         return MigrationReport{sourceSchema, targetSchema, false, dryRun, false,
             "Unsupported migration target schema.", {}};
@@ -237,14 +248,17 @@ MigrationReport Package::migrate(
 
     // Keep migration decisions explicit and reportable even when the current schema needs no step.
     MigrationReport report{sourceSchema, targetSchema, sourceSchema != targetSchema, dryRun, true, "", {}};
+    // A current-schema package needs no transformation.
     if (sourceSchema == targetSchema) {
         report.changes.push_back("Package already uses the requested schema.");
         return report;
     }
+    // v0.3 currently supports only the explicit schema 0 to schema 1 path.
     if (sourceSchema != 0 || targetSchema != schemaVersion) {
         return MigrationReport{sourceSchema, targetSchema, false, dryRun, false,
             "No migration path exists for the requested schemas.", {}};
     }
+    // Dry-run reports the planned transformation without writing files.
     if (dryRun) {
         report.changes.push_back("Schema 0 project records will be rewritten as schema 1.");
         return report;
@@ -262,13 +276,17 @@ MigrationReport Package::migrate(
 }
 
 Package Package::recover(const std::filesystem::path& packagePath) {
+    // Recovery prefers the newest retained checkpoint and never reads derived cache data.
     rejectUnsafePackagePath(packagePath);
     const auto checkpoint = packagePath.parent_path() /
         (packagePath.filename().string() + ".checkpoint-0");
+    // Prefer the latest checkpoint, falling back to the current package for first saves.
     return load(std::filesystem::is_directory(checkpoint) ? checkpoint : packagePath);
 }
 
 void Package::save(const std::filesystem::path& packagePath, SaveOptions options) const {
+    // Read-only newer-schema packages cannot be rewritten by an older application.
+    // Newer-schema packages are protected from accidental downgrade writes.
     if (readOnly_) {
         throw std::runtime_error("Newer-schema packages are read-only.");
     }
@@ -282,11 +300,13 @@ void Package::save(const std::filesystem::path& packagePath, SaveOptions options
     const auto stagingPath = parent / (packagePath.filename().string() + ".staging");
     std::error_code error;
     std::filesystem::remove_all(stagingPath, error);
+    // Remove an abandoned staging tree before starting a new write.
     if (error) {
         throw std::runtime_error("Unable to clear package staging path.");
     }
     std::filesystem::create_directories(stagingPath);
 
+    // The staging tree is validated completely before the previous package is replaced.
     try {
         rejectUnsafeComponent(project_.rootMap().id, "root map");
         std::filesystem::create_directories(stagingPath / "maps" / project_.rootMap().id);
@@ -319,6 +339,7 @@ void Package::save(const std::filesystem::path& packagePath, SaveOptions options
         writeJson(stagingPath / "manifest.json", makeManifest(project_, authoritativeHashes));
         validateManifest(readJson(stagingPath / "manifest.json"), project_);
         validateProjectHash(stagingPath, readJson(stagingPath / "manifest.json"));
+        // Failure points exercise the rollback boundary without mutating the live package.
         if (options.failurePoint == SaveOptions::FailurePoint::afterStaging ||
             options.failurePoint == SaveOptions::FailurePoint::afterValidation ||
             options.failurePoint == SaveOptions::FailurePoint::diskFull ||
@@ -336,6 +357,7 @@ void Package::save(const std::filesystem::path& packagePath, SaveOptions options
 
         const auto backupPath = parent / (packagePath.filename().string() + ".backup");
         std::filesystem::remove_all(backupPath, error);
+        // Move the old package aside so installation can be rolled back if rename fails.
         if (std::filesystem::exists(packagePath)) {
             std::filesystem::rename(packagePath, backupPath, error);
             if (error) {
@@ -347,6 +369,7 @@ void Package::save(const std::filesystem::path& packagePath, SaveOptions options
         }
         // Rename the complete staging tree only after its manifest and hashes validate.
         std::filesystem::rename(stagingPath, packagePath, error);
+        // Install only the fully validated staging tree.
         if (error) {
             std::error_code restoreError;
             if (std::filesystem::exists(backupPath)) {
@@ -356,6 +379,7 @@ void Package::save(const std::filesystem::path& packagePath, SaveOptions options
         }
         std::filesystem::remove_all(backupPath, error);
     } catch (...) {
+        // Restore the old package and remove partial staging after any failure.
         if (!std::filesystem::exists(packagePath)) {
             const auto backupPath = parent / (packagePath.filename().string() + ".backup");
             std::error_code restoreError;
@@ -369,10 +393,12 @@ void Package::save(const std::filesystem::path& packagePath, SaveOptions options
 }
 
 const domain::Project& Package::project() const noexcept {
+    // Expose the loaded authoritative snapshot without transferring ownership.
     return project_;
 }
 
 std::string Package::manifestJson() const {
+    // Reconstruct the deterministic manifest representation for inspection tools.
     const json mapJson{{"id", project_.rootMap().id}, {"type", "core.Map"}, {"parentMapId", nullptr}};
     const std::map<std::string, std::string> authoritativeHashes{
         {"project.json", contentHash(project_.normalizedJson())},
@@ -386,6 +412,7 @@ Package::Package(domain::Project project, bool readOnly)
     : project_(std::move(project)), readOnly_(readOnly) {}
 
 std::string MigrationReport::toJson() const {
+    // Expose migration results in a stable machine-readable format.
     json output{
         {"fromSchema", fromSchema},
         {"toSchema", toSchema},

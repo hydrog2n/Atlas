@@ -11,6 +11,7 @@ namespace domain = atlas::domain;
 namespace persistence = atlas::persistence;
 
 domain::Project createDefaultProject() {
+    // Keep the CLI's foundation fixture in one place for every command.
     return domain::Project::empty(
         "00000000-0000-4000-8000-000000000001",
         "00000000-0000-4000-8000-000000000002");
@@ -20,6 +21,7 @@ domain::Project createDefaultProject() {
 
 // Minimal command-line entry point for the project.
 int main(int argc, char* argv[]) {
+    // Dispatch persistence operations before the no-argument demonstration path.
     // These commands stay headless so package behavior can be tested without Qt.
     const std::string command = argc > 1 ? argv[1] : "";
 

@@ -4,7 +4,7 @@
 
 Atlas is a standalone, game-agnostic editor for designing fictional and simulated worlds in real-world units. It combines direct vector drawing, parametric road construction, lane-level transport networks, hierarchical maps, and extensible semantic data in one 2D-first authoring environment.
 
-> **Current version: `v0.3.0`** — command revisions, undo/redo, dependencies, and diagnostics
+> **Current version: `v0.3.1`** — v0.3 command transaction audit and test hardening
 
 Atlas remains in the v0.1.x foundation phase, but the project now includes the first build-and-test stabilization pass for the Windows toolchain. The current release keeps the domain kernel in place while correcting the CI build environment so the foundation remains reproducible and verifiable.
 
@@ -84,7 +84,8 @@ The roadmap is capability-based. Exact contents may evolve as implementation and
 | `v0.1.2` | Desktop build workflow | Official Qt SDK desktop build, Qt runtime deployment, and VS Code run/debug integration | Completed |
 | `v0.2.0` | Project package persistence and recovery | Canonical packages, deterministic serialization, atomic save, checkpoints, recovery, migrations, and unknown-data preservation | Completed |
 | `v0.2.1` | Persistence contract hardening | Nested unknown-data preservation, authoritative-file inventory, input limits, compatibility fixtures, and expanded recovery tests | Completed |
-| `v0.3.0` | Command transactions, dependencies, and validation | Previewable commands, commit/cancel, undo/redo, dependency invalidation, diagnostics, repair commands, and stale-result protection | **Current** |
+| `v0.3.0` | Command transactions, dependencies, and validation | Previewable commands, commit/cancel, undo/redo, dependency invalidation, diagnostics, repair commands, and stale-result protection | Completed |
+| `v0.3.1` | v0.3 validation audit and test hardening | Expanded invalidation, reference, precondition, rebuild, cache, repair, and deterministic undo evidence | **Current** |
 | `v0.4.0` | Canvas drafting and generic object editing | Infinite real-scale canvas, generic geometry, layers and levels, references, selection, inspection, and keyboard workflows | Planned |
 | `v0.5.0` | RoadSpline stationing and derived geometry | Road splines, station anchors, segments, deterministic edits, derived envelopes, and geometry diagnostics | Planned |
 | `v0.6.0` | Lane-native cross-sections and stable lineage | Physically scaled lanes and road elements, lane ports, cross-section editing, lineage, and deterministic reverse/reorder behavior | Planned |
@@ -104,7 +105,7 @@ The roadmap is capability-based. Exact contents may evolve as implementation and
 
 Potential future work includes advanced GIS and OpenStreetMap-derived imports, traffic and route simulation, derived 3D previews, collaborative editing, scripting and automation, procedural city generation, constraint-assisted interchange design, and live game-engine synchronization.
 
-## Current Development Status — `v0.3.0`
+## Current Development Status — `v0.3.1`
 
 Atlas is still in the foundational release train, and the current release establishes the deterministic command and revision foundation required for future editing.
 
