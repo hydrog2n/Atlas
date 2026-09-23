@@ -2,10 +2,10 @@
 
 #include <gtest/gtest.h>
 
-// These tests describe the first project-level requirements.
-// They are intentionally small and direct: they verify identity, serialization,
-// validation, and preservation of extension data.
+// Domain tests cover stable identity, deterministic serialization, validation,
+// and preservation of extension and unknown field data.
 
+// Verifies that an empty project retains stable project and root-map identity.
 TEST(Project, R010_003_EmptyProjectHasStableRootMap) {
     const auto project = atlas::domain::Project::empty("project", "root-map");
 
@@ -13,6 +13,7 @@ TEST(Project, R010_003_EmptyProjectHasStableRootMap) {
     EXPECT_EQ(project.rootMap().id, "root-map");
 }
 
+// Verifies that equivalent projects produce identical normalized JSON.
 TEST(Project, R010_005_NormalizedJsonIsDeterministic) {
     const auto first = atlas::domain::Project::empty("project", "root-map");
     const auto second = atlas::domain::Project::empty("project", "root-map");
@@ -20,6 +21,7 @@ TEST(Project, R010_005_NormalizedJsonIsDeterministic) {
     EXPECT_EQ(first.normalizedJson(), second.normalizedJson());
 }
 
+// Verifies that JSON round trips preserve project and root-map identity.
 TEST(Project, R010_005_JsonRoundTripPreservesIdentityAndRootMap) {
     const auto original = atlas::domain::Project::empty("project", "root-map");
     const auto reloaded = atlas::domain::Project::fromJson(original.normalizedJson());
@@ -29,6 +31,7 @@ TEST(Project, R010_005_JsonRoundTripPreservesIdentityAndRootMap) {
     EXPECT_EQ(reloaded.normalizedJson(), original.normalizedJson());
 }
 
+// Verifies that parsing rejects a project without the required identifier.
 TEST(Project, R010_005_JsonParserRejectsMissingProjectId) {
     const auto invalid = R"({
         "schemaVersion": 1,
@@ -41,6 +44,7 @@ TEST(Project, R010_005_JsonParserRejectsMissingProjectId) {
     EXPECT_THROW(atlas::domain::Project::fromJson(invalid), std::invalid_argument);
 }
 
+// Verifies that recognized extension data survives parsing and normalization.
 TEST(Project, R010_005_JsonParserPreservesUnknownExtensionData) {
     const auto json = R"({
         "id": "project",
@@ -62,6 +66,7 @@ TEST(Project, R010_005_JsonParserPreservesUnknownExtensionData) {
     EXPECT_EQ(project.normalizedJson(), project.normalizedJson());
 }
 
+// Verifies that unknown project fields remain available after parsing.
 TEST(Project, R020_001_JsonParserPreservesUnknownFields) {
     const auto json = R"({
         "id": "project",
@@ -79,6 +84,7 @@ TEST(Project, R020_001_JsonParserPreservesUnknownFields) {
     EXPECT_EQ(project.normalizedJson(), project.normalizedJson());
 }
 
+// Verifies that unknown map fields survive canonical normalization.
 TEST(Project, R020_001_MapUnknownFieldsSurviveNormalization) {
     const auto project = atlas::domain::Project::fromJson(R"({
         "id": "project",

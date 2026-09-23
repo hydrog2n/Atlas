@@ -4,6 +4,8 @@
 
 #include <random>
 
+// Application tests cover transaction isolation, history, dependencies,
+// diagnostics, repairs, destructive impacts, rebuild failures, and cache results.
 namespace {
 
 class InvalidPreconditionCommand final : public atlas::application::Command {
@@ -24,6 +26,7 @@ public:
 
 } // namespace
 
+// Verifies that preview and cancellation leave the live revision unchanged.
 TEST(CommandProcessor, PreviewDoesNotMutateLiveRevision) {
     const auto first = atlas::domain::Project::empty("first", "root-map");
     const auto second = atlas::domain::Project::empty("second", "root-map");
@@ -39,6 +42,7 @@ TEST(CommandProcessor, PreviewDoesNotMutateLiveRevision) {
     EXPECT_EQ(processor.current().project.id(), "first");
 }
 
+// Verifies that commit, undo, and redo restore source state and selection.
 TEST(CommandProcessor, CommitUndoAndRedoRestoreAuthoritativeState) {
     atlas::application::CommandProcessor processor({
         0, atlas::domain::Project::empty("first", "root-map"), {{"selected", "first"}}});
@@ -53,6 +57,7 @@ TEST(CommandProcessor, CommitUndoAndRedoRestoreAuthoritativeState) {
     EXPECT_EQ(processor.current().selection["selected"], "first");
 }
 
+// Verifies that a command based on an older revision cannot commit.
 TEST(CommandProcessor, StaleRevisionIsRejected) {
     atlas::application::CommandProcessor processor({
         4, atlas::domain::Project::empty("first", "root-map"), {}});
@@ -64,6 +69,7 @@ TEST(CommandProcessor, StaleRevisionIsRejected) {
     EXPECT_EQ(processor.current().project.id(), "first");
 }
 
+// Verifies that diagnostics retain stable rule identifiers and revisions.
 TEST(CommandProcessor, DiagnosticCarriesStableRuleAndRevision) {
     atlas::application::CommandProcessor processor({
         7, atlas::domain::Project::empty("project", "root-map"), {}});
@@ -77,6 +83,7 @@ TEST(CommandProcessor, DiagnosticCarriesStableRuleAndRevision) {
     EXPECT_EQ(processor.diagnostics().front().repairIds.front(), "repair-project");
 }
 
+// Verifies that consecutive project edits coalesce into one undo entry.
 TEST(CommandProcessor, CoalescesContinuousProjectCommands) {
     atlas::application::CommandProcessor processor({
         0, atlas::domain::Project::empty("first", "root-map"), {}});
@@ -91,6 +98,7 @@ TEST(CommandProcessor, CoalescesContinuousProjectCommands) {
     EXPECT_FALSE(processor.canUndo());
 }
 
+// Verifies that results from obsolete source revisions are rejected.
 TEST(CommandProcessor, DependencyResultsRejectStaleRevisions) {
     atlas::application::CommandProcessor processor({
         2, atlas::domain::Project::empty("project", "root-map"), {}});
@@ -105,6 +113,7 @@ TEST(CommandProcessor, DependencyResultsRejectStaleRevisions) {
     EXPECT_EQ(*processor.cachedResult("cache"), "new");
 }
 
+// Verifies that dependency lookup returns each derived product once.
 TEST(CommandProcessor, DependencyGraphReturnsUniqueDependents) {
     atlas::application::DependencyGraph graph;
     graph.addDependency("source", "geometry");
@@ -117,6 +126,7 @@ TEST(CommandProcessor, DependencyGraphReturnsUniqueDependents) {
     EXPECT_EQ(dependents[1], "diagnostics");
 }
 
+// Verifies that range-scoped invalidation excludes unrelated dependents.
 TEST(CommandProcessor, DependencyInvalidationOnlyTouchesAffectedRanges) {
     atlas::application::DependencyGraph graph;
     graph.addDependency("road", "near", atlas::application::StationRange{0.0, 10.0});
@@ -131,6 +141,7 @@ TEST(CommandProcessor, DependencyInvalidationOnlyTouchesAffectedRanges) {
     EXPECT_EQ(affected[1], "global");
 }
 
+// Verifies that overlapping ranges coalesce without merging unrelated ranges.
 TEST(CommandProcessor, OverlappingInvalidationsCoalesceWithoutMergingUnrelatedRanges) {
     const auto coalesced = atlas::application::coalesceInvalidations({
         {"road", "geometry", 5, atlas::application::StationRange{0.0, 10.0}, {}},
@@ -144,6 +155,7 @@ TEST(CommandProcessor, OverlappingInvalidationsCoalesceWithoutMergingUnrelatedRa
     EXPECT_DOUBLE_EQ(coalesced[0].stationRange->end, 16.0);
 }
 
+// Verifies that destructive changes require an explicit resolution.
 TEST(CommandProcessor, DestructiveImpactRequiresExplicitResolution) {
     const auto cancelled = atlas::application::resolveDestructiveImpact(
         {"source", "dependent"}, atlas::application::ImpactResolution::cancel);
@@ -155,6 +167,7 @@ TEST(CommandProcessor, DestructiveImpactRequiresExplicitResolution) {
     EXPECT_EQ(accepted.affectedIds.size(), 2);
 }
 
+// Verifies that reverse references distinguish required and optional dependents.
 TEST(CommandProcessor, ReverseReferencesExposeRequiredAndOptionalDependents) {
     atlas::application::ReverseReferenceIndex index;
     index.addReference("source", "required-dependent", atlas::application::ReferenceStrength::required);
@@ -166,6 +179,7 @@ TEST(CommandProcessor, ReverseReferencesExposeRequiredAndOptionalDependents) {
         (std::vector<std::string>{"required-dependent"}));
 }
 
+// Verifies that destructive impact resolution uses reverse-reference data.
 TEST(CommandProcessor, DestructiveImpactUsesReverseReferences) {
     atlas::application::ReverseReferenceIndex index;
     index.addReference("source", "dependent", atlas::application::ReferenceStrength::required);
@@ -180,6 +194,7 @@ TEST(CommandProcessor, DestructiveImpactUsesReverseReferences) {
     EXPECT_EQ(deleted.affectedIds, (std::vector<std::string>{"dependent"}));
 }
 
+// Verifies that repairs use the normal preview and commit path.
 TEST(CommandProcessor, RepairRunsThroughPreviewAndCommitPath) {
     atlas::application::CommandProcessor processor({
         0, atlas::domain::Project::empty("broken", "root-map"), {}});
@@ -195,6 +210,7 @@ TEST(CommandProcessor, RepairRunsThroughPreviewAndCommitPath) {
     EXPECT_EQ(processor.current().project.id(), "repaired");
 }
 
+// Verifies that repair transactions participate in undo and redo.
 TEST(CommandProcessor, RepairCanBeUndoneAndRedone) {
     atlas::application::CommandProcessor processor({
         0, atlas::domain::Project::empty("broken", "root-map"), {}});
@@ -207,6 +223,7 @@ TEST(CommandProcessor, RepairCanBeUndoneAndRedone) {
     EXPECT_EQ(processor.current().project.id(), "repaired");
 }
 
+// Verifies that structural preview errors are diagnosed and block commit.
 TEST(CommandProcessor, InvalidPreviewIsDiagnosedAndCannotCommit) {
     atlas::application::CommandProcessor processor({
         0, atlas::domain::Project::empty("project", "root-map"), {}});
@@ -221,6 +238,7 @@ TEST(CommandProcessor, InvalidPreviewIsDiagnosedAndCannotCommit) {
     EXPECT_EQ(processor.diagnostics().front().ruleId, "VAL-CORE-002");
 }
 
+// Verifies that command failure leaves revision and history unchanged.
 TEST(CommandProcessor, FailedCommandLeavesRevisionAndHistoryUnchanged) {
     class FailingCommand final : public atlas::application::Command {
     public:
@@ -240,6 +258,7 @@ TEST(CommandProcessor, FailedCommandLeavesRevisionAndHistoryUnchanged) {
     EXPECT_FALSE(processor.canUndo());
 }
 
+// Verifies that a deterministic command sequence can be fully undone.
 TEST(CommandProcessor, DeterministicCommandSequenceCanBeFullyUndone) {
     atlas::application::CommandProcessor processor({
         0, atlas::domain::Project::empty("0", "root-map"), {}});
@@ -257,6 +276,7 @@ TEST(CommandProcessor, DeterministicCommandSequenceCanBeFullyUndone) {
     EXPECT_FALSE(processor.canUndo());
 }
 
+// Verifies that rebuild failure preserves source and records a repair diagnostic.
 TEST(CommandProcessor, RebuildFailurePreservesSourceAndAddsRepairDiagnostic) {
     atlas::application::CommandProcessor processor({
         3, atlas::domain::Project::empty("project", "root-map"), {}});
@@ -273,6 +293,7 @@ TEST(CommandProcessor, RebuildFailurePreservesSourceAndAddsRepairDiagnostic) {
     EXPECT_EQ(diagnostic.repairIds, (std::vector<std::string>{"repair-project"}));
 }
 
+// Verifies that rebuild failure does not replace an existing good cache.
 TEST(CommandProcessor, RebuildFailureDoesNotReplaceAnExistingGoodCache) {
     atlas::application::CommandProcessor processor({
         3, atlas::domain::Project::empty("project", "root-map"), {}});
@@ -284,6 +305,7 @@ TEST(CommandProcessor, RebuildFailureDoesNotReplaceAnExistingGoodCache) {
     EXPECT_EQ(*processor.cachedResult("geometry"), "good");
 }
 
+// Verifies that cache results identify their complete source dependencies.
 TEST(CommandProcessor, CacheResultsRequireTheCompleteDependencySet) {
     atlas::application::CommandProcessor processor({
         2, atlas::domain::Project::empty("project", "root-map"), {}});
@@ -295,6 +317,7 @@ TEST(CommandProcessor, CacheResultsRequireTheCompleteDependencySet) {
     EXPECT_EQ(*processor.cachedResult("geometry"), "right");
 }
 
+// Verifies that duplicate current results are accepted deterministically.
 TEST(CommandProcessor, DuplicateCurrentResultsAreDeterministic) {
     atlas::application::CommandProcessor processor({
         2, atlas::domain::Project::empty("project", "root-map"), {}});
@@ -305,6 +328,7 @@ TEST(CommandProcessor, DuplicateCurrentResultsAreDeterministic) {
     EXPECT_EQ(*processor.cachedResult("geometry"), "same");
 }
 
+// Verifies that fixed-seed command sequences restore source and selection.
 TEST(CommandProcessor, FixedSeedCommandSequenceFullyRestoresSourceAndSelection) {
     const atlas::application::Revision initial{
         0, atlas::domain::Project::empty("0", "root-map"), {{"selected", "0"}}};

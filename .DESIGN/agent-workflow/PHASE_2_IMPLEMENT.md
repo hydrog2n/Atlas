@@ -32,7 +32,8 @@ Implement Atlas **\[VERSION\]** according to the approved Phase 1 plan.
 3.  Respect persistence, migration, compatibility, validation,
     ownership, and dependency contracts.
 4.  Add/update tests alongside implementation and run focused tests as
-    components are completed.
+    components are completed. Each added or modified test must include a concise
+    comment describing the behavior, requirement, or failure mode it verifies.
 5.  Document important interfaces and add comments explaining **why**:
     invariants, ownership, units, determinism, compatibility,
     state/lifetime assumptions, and non-obvious algorithms.

@@ -6,6 +6,8 @@
 #include <filesystem>
 #include <fstream>
 
+// Persistence tests cover canonical package layout, defensive loading,
+// atomic saves, recovery, migration, limits, and compatibility fixtures.
 namespace {
 
 class TemporaryPackageDirectory {
@@ -29,6 +31,7 @@ private:
 
 } // namespace
 
+// Verifies that saving and loading preserves project data and the manifest.
 TEST(Package, R020_001_SaveLoadPreservesProjectAndManifest) {
     TemporaryPackageDirectory temporary;
     const auto packagePath = temporary.path() / "project.atlas";
@@ -52,6 +55,7 @@ TEST(Package, R020_001_SaveLoadPreservesProjectAndManifest) {
     EXPECT_TRUE(std::filesystem::exists(packagePath / "project.json"));
 }
 
+// Verifies that a manifest with the wrong project identity is rejected.
 TEST(Package, R020_002_LoadRejectsManifestProjectMismatch) {
     TemporaryPackageDirectory temporary;
     const auto packagePath = temporary.path() / "project.atlas";
@@ -65,6 +69,7 @@ TEST(Package, R020_002_LoadRejectsManifestProjectMismatch) {
     EXPECT_THROW(atlas::persistence::Package::load(packagePath), std::invalid_argument);
 }
 
+// Verifies that replacement saves use staging and remove staging afterward.
 TEST(Package, R020_003_SaveReplacesExistingPackageThroughStaging) {
     TemporaryPackageDirectory temporary;
     const auto packagePath = temporary.path() / "project.atlas";
@@ -77,6 +82,7 @@ TEST(Package, R020_003_SaveReplacesExistingPackageThroughStaging) {
     EXPECT_FALSE(std::filesystem::exists(packagePath.parent_path() / "project.atlas.staging"));
 }
 
+// Verifies that package saves reject paths that traverse outside the target.
 TEST(Package, R020_002_SaveRejectsTraversalPath) {
     const auto project = atlas::domain::Project::empty("project", "root-map");
 
@@ -86,6 +92,7 @@ TEST(Package, R020_002_SaveRejectsTraversalPath) {
         std::invalid_argument);
 }
 
+// Verifies that saves create the required canonical package directories.
 TEST(Package, R020_001_SaveCreatesCanonicalPackageDirectories) {
     TemporaryPackageDirectory temporary;
     const auto packagePath = temporary.path() / "project.atlas";
@@ -98,6 +105,7 @@ TEST(Package, R020_001_SaveCreatesCanonicalPackageDirectories) {
     EXPECT_TRUE(std::filesystem::exists(packagePath / "cache"));
 }
 
+// Verifies that changed authoritative content fails manifest validation.
 TEST(Package, R020_002_LoadRejectsChangedAuthoritativeContent) {
     TemporaryPackageDirectory temporary;
     const auto packagePath = temporary.path() / "project.atlas";
@@ -111,6 +119,7 @@ TEST(Package, R020_002_LoadRejectsChangedAuthoritativeContent) {
     EXPECT_THROW(atlas::persistence::Package::load(packagePath), std::invalid_argument);
 }
 
+// Verifies that recovery loads the newest valid checkpoint.
 TEST(Package, R020_003_RecoveryLoadsLatestCheckpoint) {
     TemporaryPackageDirectory temporary;
     const auto packagePath = temporary.path() / "project.atlas";
@@ -122,6 +131,7 @@ TEST(Package, R020_003_RecoveryLoadsLatestCheckpoint) {
     EXPECT_EQ(atlas::persistence::Package::recover(packagePath).project().id(), "first");
 }
 
+// Verifies that migration reports an unchanged current schema accurately.
 TEST(Package, R020_004_MigrationReportsCurrentSchema) {
     TemporaryPackageDirectory temporary;
     const auto packagePath = temporary.path() / "project.atlas";
@@ -137,6 +147,7 @@ TEST(Package, R020_004_MigrationReportsCurrentSchema) {
     EXPECT_NE(report.toJson().find("already uses"), std::string::npos);
 }
 
+// Verifies that unsafe root-map directory names are rejected.
 TEST(Package, R020_002_SaveRejectsUnsafeRootMapDirectoryName) {
     const auto project = atlas::domain::Project::empty("project", "bad/map");
 
@@ -146,6 +157,7 @@ TEST(Package, R020_002_SaveRejectsUnsafeRootMapDirectoryName) {
         std::invalid_argument);
 }
 
+// Verifies that injected save failures preserve the previous package.
 TEST(Package, R020_003_InjectedSaveFailuresPreservePreviousPackage) {
     TemporaryPackageDirectory temporary;
     const auto packagePath = temporary.path() / "project.atlas";
@@ -167,6 +179,7 @@ TEST(Package, R020_003_InjectedSaveFailuresPreservePreviousPackage) {
     }
 }
 
+// Verifies that schema-zero packages migrate to the current schema.
 TEST(Package, R020_004_MigratesSchemaZeroToCurrentSchema) {
     TemporaryPackageDirectory temporary;
     const auto packagePath = temporary.path() / "project.atlas";
@@ -187,6 +200,7 @@ TEST(Package, R020_004_MigratesSchemaZeroToCurrentSchema) {
     EXPECT_EQ(atlas::persistence::Package::load(packagePath).project().id(), "project");
 }
 
+// Verifies that newer schemas can be inspected but not rewritten.
 TEST(Package, R020_002_NewerSchemaCanBeLoadedReadOnly) {
     TemporaryPackageDirectory temporary;
     const auto packagePath = temporary.path() / "project.atlas";
@@ -202,10 +216,13 @@ TEST(Package, R020_002_NewerSchemaCanBeLoadedReadOnly) {
     manifestOutput.close();
 
     EXPECT_THROW(atlas::persistence::Package::load(packagePath), std::invalid_argument);
-    const auto newer = atlas::persistence::Package::load(packagePath, {.allowNewerSchemaReadOnly = true});
+    atlas::persistence::LoadOptions loadOptions;
+    loadOptions.allowNewerSchemaReadOnly = true;
+    const auto newer = atlas::persistence::Package::load(packagePath, loadOptions);
     EXPECT_THROW(newer.save(packagePath), std::runtime_error);
 }
 
+// Verifies that filesystem failure simulations preserve the previous package.
 TEST(Package, R020_003_FilesystemFailureSimulationPreservesPreviousPackage) {
     TemporaryPackageDirectory temporary;
     const auto packagePath = temporary.path() / "project.atlas";
@@ -227,6 +244,7 @@ TEST(Package, R020_003_FilesystemFailureSimulationPreservesPreviousPackage) {
     }
 }
 
+// Verifies that failed migrations produce a report and preserve the package.
 TEST(Package, R020_004_MigrationFailureProducesReport) {
     TemporaryPackageDirectory temporary;
     const auto packagePath = temporary.path() / "project.atlas";
@@ -240,6 +258,7 @@ TEST(Package, R020_004_MigrationFailureProducesReport) {
     EXPECT_EQ(atlas::persistence::Package::load(packagePath).project().id(), "project");
 }
 
+// Verifies that recovery rejects a corrupt checkpoint.
 TEST(Package, R020_003_CorruptCheckpointIsRejected) {
     TemporaryPackageDirectory temporary;
     const auto packagePath = temporary.path() / "project.atlas";
@@ -255,6 +274,7 @@ TEST(Package, R020_003_CorruptCheckpointIsRejected) {
     EXPECT_THROW(atlas::persistence::Package::recover(packagePath), std::invalid_argument);
 }
 
+// Verifies that malformed input is rejected without creating authoritative data.
 TEST(Package, R020_002_MalformedPackageIsRejectedWithoutMutation) {
     TemporaryPackageDirectory temporary;
     const auto packagePath = temporary.path() / "project.atlas";
@@ -268,6 +288,7 @@ TEST(Package, R020_002_MalformedPackageIsRejectedWithoutMutation) {
     EXPECT_FALSE(std::filesystem::exists(packagePath / "project.json"));
 }
 
+// Verifies that packages missing authoritative files are rejected.
 TEST(Package, R020_002_MissingAuthoritativeFileIsRejected) {
     TemporaryPackageDirectory temporary;
     const auto packagePath = temporary.path() / "project.atlas";
@@ -278,6 +299,7 @@ TEST(Package, R020_002_MissingAuthoritativeFileIsRejected) {
     EXPECT_THROW(atlas::persistence::Package::load(packagePath), std::invalid_argument);
 }
 
+// Verifies that oversized JSON input is rejected by package limits.
 TEST(Package, R020_002_OversizedJsonIsRejected) {
     TemporaryPackageDirectory temporary;
     const auto packagePath = temporary.path() / "project.atlas";
@@ -290,6 +312,7 @@ TEST(Package, R020_002_OversizedJsonIsRejected) {
     EXPECT_THROW(atlas::persistence::Package::load(packagePath), std::invalid_argument);
 }
 
+// Verifies that repeated save and load cycles remain deterministic.
 TEST(Package, R020_001_RepeatedSaveLoadIsDeterministic) {
     TemporaryPackageDirectory temporary;
     const auto packagePath = temporary.path() / "project.atlas";
@@ -304,8 +327,15 @@ TEST(Package, R020_001_RepeatedSaveLoadIsDeterministic) {
     EXPECT_EQ(first, second);
 }
 
+// Verifies that the retained compatibility fixture resaves without semantic drift.
 TEST(Package, R020_005_RetainedCompatibilityFixtureResavesWithoutDrift) {
-    const auto fixture = std::filesystem::path(ATLAS_SOURCE_DIR) /
+    const auto sourceRoot =
+#ifdef ATLAS_SOURCE_DIR
+        std::filesystem::path(ATLAS_SOURCE_DIR);
+#else
+        std::filesystem::path(__FILE__).parent_path().parent_path().parent_path().parent_path();
+#endif
+    const auto fixture = sourceRoot /
         "fixtures" / "compatibility" / "empty-project.atlas";
     const auto original = atlas::persistence::Package::load(fixture);
     const auto temporary = std::filesystem::temp_directory_path() / "atlas-fixture-replay.atlas";
@@ -320,6 +350,7 @@ TEST(Package, R020_005_RetainedCompatibilityFixtureResavesWithoutDrift) {
     std::filesystem::remove_all(temporary, cleanupError);
 }
 
+// Verifies that the manifest lists files that exist in the package.
 TEST(Package, R020_001_ManifestListsExistingAuthoritativeFiles) {
     TemporaryPackageDirectory temporary;
     const auto packagePath = temporary.path() / "project.atlas";
@@ -335,21 +366,25 @@ TEST(Package, R020_001_ManifestListsExistingAuthoritativeFiles) {
     }
 }
 
+// Verifies that checkpoint rotation honors the configured retention count.
 TEST(Package, R020_003_CheckpointRotationHonorsConfiguredCount) {
     TemporaryPackageDirectory temporary;
     const auto packagePath = temporary.path() / "project.atlas";
+    atlas::persistence::SaveOptions saveOptions;
+    saveOptions.checkpointCount = 2;
     atlas::persistence::Package::fromProject(
-        atlas::domain::Project::empty("one", "root-map")).save(packagePath, {.checkpointCount = 2});
+        atlas::domain::Project::empty("one", "root-map")).save(packagePath, saveOptions);
     atlas::persistence::Package::fromProject(
-        atlas::domain::Project::empty("two", "root-map")).save(packagePath, {.checkpointCount = 2});
+        atlas::domain::Project::empty("two", "root-map")).save(packagePath, saveOptions);
     atlas::persistence::Package::fromProject(
-        atlas::domain::Project::empty("three", "root-map")).save(packagePath, {.checkpointCount = 2});
+        atlas::domain::Project::empty("three", "root-map")).save(packagePath, saveOptions);
 
     EXPECT_TRUE(std::filesystem::is_directory(packagePath.parent_path() / "project.atlas.checkpoint-0"));
     EXPECT_TRUE(std::filesystem::is_directory(packagePath.parent_path() / "project.atlas.checkpoint-1"));
     EXPECT_FALSE(std::filesystem::exists(packagePath.parent_path() / "project.atlas.checkpoint-2"));
 }
 
+// Verifies that migration dry runs leave the package unchanged.
 TEST(Package, R020_004_MigrationDryRunDoesNotChangePackage) {
     TemporaryPackageDirectory temporary;
     const auto packagePath = temporary.path() / "project.atlas";
@@ -363,6 +398,7 @@ TEST(Package, R020_004_MigrationDryRunDoesNotChangePackage) {
     EXPECT_EQ(atlas::persistence::Package::load(packagePath).project().normalizedJson(), before);
 }
 
+// Verifies that disposable cache data is not required for loading.
 TEST(Package, R020_001_CacheDirectoryIsDisposable) {
     TemporaryPackageDirectory temporary;
     const auto packagePath = temporary.path() / "project.atlas";
