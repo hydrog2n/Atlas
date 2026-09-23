@@ -13,6 +13,39 @@ The format follows a release-focused pattern:
 
 ---
 
+## v0.3.0 - 2026-09-22
+
+### Added
+
+- Immutable-style project revisions and a Qt-independent command processor.
+- Preview, commit, cancel, stale-revision rejection, undo/redo, selection-context restoration, and continuous command coalescing.
+- Dependency edges, version-tagged result acceptance, stale-result rejection, stable diagnostics, repair commands, and explicit destructive-impact resolution.
+
+### Changed
+
+- Promoted v0.3.0 to the current release while preserving project schema version `1` and the v0.2.1 persistence contract.
+
+### Fixed
+
+- Failed commands leave the authoritative revision and undo history unchanged.
+
+### Testing / Validation
+
+- 42 out of 42 tests passed.
+- Official Qt desktop build passed.
+- Architecture governance, diagnostics, and formatting checks passed.
+
+### Compatibility / Migration
+
+- No project package schema change.
+- Existing v0.2.1 packages and compatibility fixtures remain supported.
+
+### Known Limitations
+
+- No road-specific commands, optimized multithreaded scheduler, plugin mutation boundary, or interactive canvas workflow.
+
+---
+
 ## v0.2.1 - 2026-09-22
 
 ### Added

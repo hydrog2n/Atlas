@@ -125,7 +125,7 @@ json makeManifest(
         {"authoritativeFiles", authoritativeHashes},
         {"referenceDescriptors", json::array()},
         {"reverseReferences", json::object()},
-        {"generatorVersions", json{{"atlas", "0.2.1"}}}
+        {"generatorVersions", json{{"atlas", "0.3.0"}}}
     };
 }
 

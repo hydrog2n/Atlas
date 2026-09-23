@@ -10,7 +10,7 @@ date: 2026-09-20
 
 # Atlas Implementation Roadmap
 
-> **Current status:** `v0.2.0` — Project Package Persistence and Recovery — **Completed** · Next: `v0.3.0` — Command Transactions, Dependencies, and Validation
+> **Current status:** `v0.3.0` — Command Transactions, Dependencies, and Validation — **Completed** · Next: `v0.4.0` — Canvas Drafting and Generic Object Editing
 
 ## Document purpose
 

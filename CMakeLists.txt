@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.25)
 # This is the top-level build definition for the Atlas project.
 # It tells CMake which language we use, which components to build,
 # and how the project is organized into libraries, executables, and tests.
-project(Atlas VERSION 0.2.1 LANGUAGES CXX)
+project(Atlas VERSION 0.3.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -43,6 +43,16 @@ target_include_directories(atlas_persistence
 )
 target_link_libraries(atlas_persistence PUBLIC atlas_domain)
 target_compile_features(atlas_persistence PUBLIC cxx_std_23)
+
+add_library(atlas_application STATIC
+    src/atlas/application/command.cpp
+)
+target_include_directories(atlas_application
+    PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+target_link_libraries(atlas_application PUBLIC atlas_domain)
+target_compile_features(atlas_application PUBLIC cxx_std_23)
 
 # The command-line executable is a tiny test/demo runner for the domain model.
 add_executable(atlas_cli src/atlas/cli/main.cpp)
@@ -86,6 +96,16 @@ if(ATLAS_BUILD_TESTS)
         ATLAS_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
     )
     gtest_discover_tests(atlas_persistence_tests)
+
+    add_executable(atlas_application_tests
+        tests/atlas/application/command_tests.cpp
+    )
+    target_link_libraries(atlas_application_tests
+        PRIVATE
+            atlas_application
+            GTest::gtest_main
+    )
+    gtest_discover_tests(atlas_application_tests)
 endif()
 
 # These installation rules make the app usable after a build.
