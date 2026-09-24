@@ -35,7 +35,7 @@ This document is the source of truth for product meaning and technical invariant
 | Companion execution plan | Atlas Implementation Roadmap 1.0 |
 | Maintained representations | This Markdown source and its generated DOCX edition carry the same normative content |
 
-> **Current status:** Atlas is currently at `v0.3.1`, an incremental validation and test-hardening update to the deterministic command revisions, undo/redo, dependency invalidation, diagnostics, repair commands, and stale-result protection delivered in v0.3.0. Interactive canvas editing, road authoring, and production export remain later release capabilities and MUST NOT be represented as already shipped.
+> **Current status:** Atlas is currently at `v0.4.0`, delivering the first interactive canvas, generic geometry, layers and levels, references, selection, inspection, and keyboard workflows on the deterministic foundation delivered in v0.3.0 and v0.3.1. Road authoring and production export remain later release capabilities and MUST NOT be represented as already shipped.
 
 # Document Control
 
@@ -1155,7 +1155,7 @@ Atlas tracks compatibility across separate dimensions:
 | `v0.1.0` | Domain Kernel and Engineering Contract | Stable typed records, IDs, units, ownership validation, deterministic normalization, module boundaries, and conformance foundations. | **Current** |
 | `v0.2.0` | Project Package Persistence and Recovery | Canonical packages, deterministic serialization, atomic save, autosave, recovery, migrations, and unknown-data preservation. | Planned |
 | `v0.3.0` | Command Transactions Dependencies and Validation | Previewable commands, commit and cancel, undo and redo, dependency invalidation, incremental diagnostics, and stale-result protection. | Completed |
-| `v0.4.0` | Canvas Drafting and Generic Object Editing | Infinite real-scale canvas, generic geometry, layers and levels, references, selection, inspection, and keyboard workflows. | Planned |
+| `v0.4.0` | Canvas Drafting and Generic Object Editing | Infinite real-scale canvas, generic geometry, layers and levels, references, selection, inspection, and keyboard workflows. | Completed |
 | `v0.5.0` | RoadSpline Stationing and Derived Geometry | Road splines, station anchors, segments, deterministic edits, derived envelopes, and geometry diagnostics. | Planned |
 | `v0.6.0` | Lane Native Cross Sections and Stable Lineage | Physically scaled lanes and road elements, lane ports, cross-section editing, lineage, and deterministic reverse and reorder behavior. | Planned |
 | `v0.7.0` | Transport Network and Basic Junctions | Explicit connections, T-junctions, lane mappings, movements, graph inspection, and topology validation. | Planned |

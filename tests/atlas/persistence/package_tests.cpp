@@ -411,3 +411,88 @@ TEST(Package, R020_001_CacheDirectoryIsDisposable) {
 
     EXPECT_EQ(atlas::persistence::Package::load(packagePath).project().id(), "project");
 }
+
+// Verifies that generic objects, layers, and levels survive package save/load.
+TEST(Package, R040_003_GenericObjectsRoundTripThroughPackage) {
+    TemporaryPackageDirectory temporary;
+    const auto packagePath = temporary.path() / "project.atlas";
+    const auto base = atlas::domain::Project::empty("project", "root-map");
+    const auto object = atlas::domain::MapObject::create(
+        "point-1", "core.Point", {{"x", 12.0}, {"y", 8.0}})
+        .withDisplayLayer("annotations")
+        .withSpatialLevel("upper");
+    auto map = base.rootMap();
+    map.displayLayers.push_back({"annotations", "Annotations", true, false, 1.0});
+    map.spatialLevels.push_back({"upper", "Upper"});
+    const auto project = base.withRootMap(map.withObject(object));
+
+    atlas::persistence::Package::fromProject(project).save(packagePath);
+    const auto loaded = atlas::persistence::Package::load(packagePath).project();
+
+    ASSERT_NE(loaded.rootMap().findObject("point-1"), nullptr);
+    EXPECT_EQ(loaded.rootMap().findObject("point-1")->type(), "core.Point");
+    EXPECT_EQ(loaded.rootMap().findObject("point-1")->primaryDisplayLayerId(), "annotations");
+    EXPECT_EQ(*loaded.rootMap().findObject("point-1")->spatialLevelId(), "upper");
+    EXPECT_TRUE(std::filesystem::exists(packagePath / "maps" / "root-map" / "objects.json"));
+}
+
+// Verifies that unknown generic object types remain readable and preserved.
+TEST(Package, R040_003_UnknownGenericObjectTypeIsPreserved) {
+    const auto project = atlas::domain::Project::fromJson(R"({
+        "id": "project",
+        "schemaVersion": 1,
+        "units": "m",
+        "maps": [{
+            "id": "root-map",
+            "objects": [{"id": "future-1", "type": "future.Custom", "geometry": {"value": 7}}]
+        }]
+    })");
+
+    ASSERT_NE(project.rootMap().findObject("future-1"), nullptr);
+    EXPECT_EQ(project.rootMap().findObject("future-1")->type(), "future.Custom");
+    EXPECT_NE(project.normalizedJson().find("future.Custom"), std::string::npos);
+}
+
+// Verifies that every supported generic object family survives package persistence.
+TEST(Package, R040_003_AllGenericObjectFamiliesRoundTrip) {
+    TemporaryPackageDirectory temporary;
+    const auto packagePath = temporary.path() / "project.atlas";
+    const auto base = atlas::domain::Project::empty("project", "root-map");
+    auto map = base.rootMap();
+    const std::vector<std::string> types{
+        "core.Point", "core.Polyline", "core.Polygon", "core.Rectangle",
+        "core.Circle", "core.Text", "core.ReferenceImage", "core.Guide"};
+    for (std::size_t index = 0; index < types.size(); ++index) {
+        map.objects.push_back(atlas::domain::MapObject::create(
+            "object-" + std::to_string(index), types[index]));
+    }
+
+    atlas::persistence::Package::fromProject(base.withRootMap(map)).save(packagePath);
+    const auto loaded = atlas::persistence::Package::load(packagePath).project();
+
+    ASSERT_EQ(loaded.rootMap().objects.size(), types.size());
+    for (std::size_t index = 0; index < types.size(); ++index) {
+        EXPECT_EQ(loaded.rootMap().findObject("object-" + std::to_string(index))->type(), types[index]);
+    }
+}
+
+// Verifies that tampering with the authoritative object record is detected by its manifest hash.
+TEST(Package, R040_003_TamperedObjectRecordIsRejected) {
+    TemporaryPackageDirectory temporary;
+    const auto packagePath = temporary.path() / "project.atlas";
+    const auto project = atlas::domain::Project::empty("project", "root-map");
+    atlas::persistence::Package::fromProject(project).save(packagePath);
+
+    std::ofstream objects(packagePath / "maps" / "root-map" / "objects.json", std::ios::trunc);
+    objects << "[{\"id\":\"tampered\",\"type\":\"core.Point\"}]\n";
+    objects.close();
+
+    EXPECT_THROW(atlas::persistence::Package::load(packagePath), std::invalid_argument);
+}
+
+// Verifies that reference-image paths cannot escape the project package root.
+TEST(Package, R040_003_UnsafeReferenceImagePathIsRejected) {
+    EXPECT_THROW(atlas::domain::MapObject::fromJson({
+        {"id", "reference"}, {"type", "core.ReferenceImage"},
+        {"geometry", {{"path", "../outside.png"}}}}), std::invalid_argument);
+}

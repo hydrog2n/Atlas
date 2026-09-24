@@ -347,3 +347,109 @@ TEST(CommandProcessor, FixedSeedCommandSequenceFullyRestoresSourceAndSelection) 
     EXPECT_EQ(processor.current().selection, initial.selection);
     EXPECT_EQ(processor.current().number, initial.number);
 }
+
+// Verifies that generic object creation commits through the revision processor.
+TEST(CommandProcessor, CreateMapObjectRunsThroughTransaction) {
+    atlas::application::CommandProcessor processor({
+        0, atlas::domain::Project::empty("project", "root-map"), {}});
+    const auto object = atlas::domain::MapObject::create("point-1", "core.Point");
+
+    processor.commit(atlas::application::CreateMapObjectCommand(object, 0));
+
+    ASSERT_NE(processor.current().project.rootMap().findObject("point-1"), nullptr);
+    EXPECT_EQ(processor.current().number, 1);
+}
+
+// Verifies that generic object editing preserves identity while changing geometry.
+TEST(CommandProcessor, EditMapObjectPreservesIdentity) {
+    const auto object = atlas::domain::MapObject::create("point-1", "core.Point", {{"x", 1.0}});
+    const auto base = atlas::domain::Project::empty("project", "root-map")
+        .withRootMap(atlas::domain::Project::empty("project", "root-map").rootMap().withObject(object));
+    atlas::application::CommandProcessor processor({0, base, {}});
+
+    processor.commit(atlas::application::EditMapObjectCommand(
+        object.withGeometry({{"x", 2.0}}), 0));
+
+    const auto* edited = processor.current().project.rootMap().findObject("point-1");
+    ASSERT_NE(edited, nullptr);
+    EXPECT_EQ(edited->id(), "point-1");
+    EXPECT_DOUBLE_EQ(edited->geometry()["x"], 2.0);
+}
+
+// Verifies that generic object deletion can be undone and redone.
+TEST(CommandProcessor, DeleteMapObjectSupportsUndoAndRedo) {
+    const auto object = atlas::domain::MapObject::create("point-1", "core.Point");
+    const auto base = atlas::domain::Project::empty("project", "root-map")
+        .withRootMap(atlas::domain::Project::empty("project", "root-map").rootMap().withObject(object));
+    atlas::application::CommandProcessor processor({0, base, {}});
+
+    processor.commit(atlas::application::DeleteMapObjectCommand("point-1", 0));
+    EXPECT_EQ(processor.current().project.rootMap().findObject("point-1"), nullptr);
+    ASSERT_TRUE(processor.undo());
+    ASSERT_NE(processor.current().project.rootMap().findObject("point-1"), nullptr);
+    ASSERT_TRUE(processor.redo());
+    EXPECT_EQ(processor.current().project.rootMap().findObject("point-1"), nullptr);
+}
+
+// Verifies that creating an existing object fails without changing revision or history.
+TEST(CommandProcessor, CreateExistingMapObjectFailsAtomically) {
+    const auto object = atlas::domain::MapObject::create("point-1", "core.Point");
+    const auto base = atlas::domain::Project::empty("project", "root-map")
+        .withRootMap(atlas::domain::Project::empty("project", "root-map").rootMap().withObject(object));
+    atlas::application::CommandProcessor processor({0, base, {}});
+
+    EXPECT_THROW(processor.commit(atlas::application::CreateMapObjectCommand(object, 0)), std::invalid_argument);
+    EXPECT_EQ(processor.current().number, 0);
+    EXPECT_FALSE(processor.canUndo());
+}
+
+// Verifies that editing a missing object fails without mutating source state.
+TEST(CommandProcessor, EditMissingMapObjectFailsAtomically) {
+    atlas::application::CommandProcessor processor({
+        0, atlas::domain::Project::empty("project", "root-map"), {}});
+
+    EXPECT_THROW(processor.commit(atlas::application::EditMapObjectCommand(
+        atlas::domain::MapObject::create("missing", "core.Point"), 0)), std::invalid_argument);
+    EXPECT_EQ(processor.current().number, 0);
+    EXPECT_FALSE(processor.canUndo());
+}
+
+// Verifies that deleting a missing object fails without mutating source state.
+TEST(CommandProcessor, DeleteMissingMapObjectFailsAtomically) {
+    atlas::application::CommandProcessor processor({
+        0, atlas::domain::Project::empty("project", "root-map"), {}});
+
+    EXPECT_THROW(processor.commit(atlas::application::DeleteMapObjectCommand("missing", 0)), std::invalid_argument);
+    EXPECT_EQ(processor.current().number, 0);
+    EXPECT_FALSE(processor.canUndo());
+}
+
+// Verifies that every v0.4 generic object family can enter the command path.
+TEST(CommandProcessor, GenericObjectFamiliesCanBeCreatedThroughCommands) {
+    atlas::application::CommandProcessor processor({
+        0, atlas::domain::Project::empty("project", "root-map"), {}});
+    const std::vector<std::string> types{
+        "core.Point", "core.Polyline", "core.Polygon", "core.Rectangle",
+        "core.Circle", "core.Text", "core.ReferenceImage", "core.Guide"};
+
+    for (std::size_t index = 0; index < types.size(); ++index) {
+        processor.commit(atlas::application::CreateMapObjectCommand(
+            atlas::domain::MapObject::create("object-" + std::to_string(index), types[index]),
+            processor.current().number));
+    }
+
+    EXPECT_EQ(processor.current().project.rootMap().objects.size(), types.size());
+    EXPECT_EQ(processor.current().number, types.size());
+}
+
+// Verifies that generic object undo restores the original selection context.
+TEST(CommandProcessor, GenericObjectUndoRestoresSelectionContext) {
+    atlas::application::CommandProcessor processor({
+        0, atlas::domain::Project::empty("project", "root-map"), {{"primaryId", "point-1"}}});
+    const auto object = atlas::domain::MapObject::create("point-1", "core.Point");
+
+    processor.commit(atlas::application::CreateMapObjectCommand(object, 0));
+    ASSERT_TRUE(processor.undo());
+
+    EXPECT_EQ(processor.current().selection["primaryId"], "point-1");
+}

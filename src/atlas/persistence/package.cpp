@@ -128,7 +128,7 @@ json makeManifest(
         {"authoritativeFiles", authoritativeHashes},
         {"referenceDescriptors", json::array()},
         {"reverseReferences", json::object()},
-        {"generatorVersions", json{{"atlas", "0.3.1"}}}
+        {"generatorVersions", json{{"atlas", "0.4.0"}}}
     };
 }
 
@@ -315,9 +315,27 @@ void Package::save(const std::filesystem::path& packagePath, SaveOptions options
         std::filesystem::create_directories(stagingPath / "exports");
         std::filesystem::create_directories(stagingPath / "cache");
         const auto projectJson = project_.normalizedJson();
-        const json mapJson{{"id", project_.rootMap().id}, {"type", "core.Map"}, {"parentMapId", nullptr}};
+        json mapJson{
+            {"id", project_.rootMap().id},
+            {"type", "core.Map"},
+            {"parentMapId", nullptr},
+            {"defaultDisplayLayerId", project_.rootMap().defaultDisplayLayerId},
+            {"defaultSpatialLevelId", project_.rootMap().defaultSpatialLevelId},
+            {"displayLayers", json::array()},
+            {"spatialLevels", json::array()}};
+        for (const auto& layer : project_.rootMap().displayLayers) {
+            mapJson["displayLayers"].push_back({
+                {"id", layer.id}, {"name", layer.name}, {"visible", layer.visible},
+                {"locked", layer.locked}, {"opacity", layer.opacity}});
+        }
+        for (const auto& level : project_.rootMap().spatialLevels) {
+            mapJson["spatialLevels"].push_back({{"id", level.id}, {"name", level.name}});
+        }
         const auto mapText = mapJson.dump(2) + "\n";
-        const json objectsJson = json::array();
+        json objectsJson = json::array();
+        for (const auto& object : project_.rootMap().objects) {
+            objectsJson.push_back(object.normalizedJson());
+        }
         const auto objectsText = objectsJson.dump(2) + "\n";
         const json networkJson = json::array();
         const auto networkText = networkJson.dump(2) + "\n";
@@ -399,11 +417,30 @@ const domain::Project& Package::project() const noexcept {
 
 std::string Package::manifestJson() const {
     // Reconstruct the deterministic manifest representation for inspection tools.
-    const json mapJson{{"id", project_.rootMap().id}, {"type", "core.Map"}, {"parentMapId", nullptr}};
+    json mapJson{
+        {"id", project_.rootMap().id},
+        {"type", "core.Map"},
+        {"parentMapId", nullptr},
+        {"defaultDisplayLayerId", project_.rootMap().defaultDisplayLayerId},
+        {"defaultSpatialLevelId", project_.rootMap().defaultSpatialLevelId},
+        {"displayLayers", json::array()},
+        {"spatialLevels", json::array()}};
+    for (const auto& layer : project_.rootMap().displayLayers) {
+        mapJson["displayLayers"].push_back({
+            {"id", layer.id}, {"name", layer.name}, {"visible", layer.visible},
+            {"locked", layer.locked}, {"opacity", layer.opacity}});
+    }
+    for (const auto& level : project_.rootMap().spatialLevels) {
+        mapJson["spatialLevels"].push_back({{"id", level.id}, {"name", level.name}});
+    }
+    json objectsJson = json::array();
+    for (const auto& object : project_.rootMap().objects) {
+        objectsJson.push_back(object.normalizedJson());
+    }
     const std::map<std::string, std::string> authoritativeHashes{
         {"project.json", contentHash(project_.normalizedJson())},
         {"maps/" + project_.rootMap().id + "/map.json", contentHash(mapJson.dump(2) + "\n")},
-        {"maps/" + project_.rootMap().id + "/objects.json", contentHash("[]\n")},
+        {"maps/" + project_.rootMap().id + "/objects.json", contentHash(objectsJson.dump(2) + "\n")},
         {"maps/" + project_.rootMap().id + "/network.json", contentHash("[]\n")}};
     return makeManifest(project_, authoritativeHashes).dump(2) + "\n";
 }

@@ -159,6 +159,48 @@ private:
     std::uint64_t expectedRevision_;
 };
 
+class CreateMapObjectCommand final : public Command {
+public:
+    CreateMapObjectCommand(domain::MapObject object, std::uint64_t expectedRevision);
+
+    const char* name() const noexcept override;
+    std::optional<std::uint64_t> expectedRevision() const noexcept override;
+    std::string coalesceKey() const override;
+    Revision apply(const Revision& current) const override;
+
+private:
+    domain::MapObject object_;
+    std::uint64_t expectedRevision_;
+};
+
+class EditMapObjectCommand final : public Command {
+public:
+    EditMapObjectCommand(domain::MapObject object, std::uint64_t expectedRevision);
+
+    const char* name() const noexcept override;
+    std::optional<std::uint64_t> expectedRevision() const noexcept override;
+    std::string coalesceKey() const override;
+    Revision apply(const Revision& current) const override;
+
+private:
+    domain::MapObject object_;
+    std::uint64_t expectedRevision_;
+};
+
+class DeleteMapObjectCommand final : public Command {
+public:
+    DeleteMapObjectCommand(std::string objectId, std::uint64_t expectedRevision);
+
+    const char* name() const noexcept override;
+    std::optional<std::uint64_t> expectedRevision() const noexcept override;
+    std::string coalesceKey() const override;
+    Revision apply(const Revision& current) const override;
+
+private:
+    std::string objectId_;
+    std::uint64_t expectedRevision_;
+};
+
 class CommandProcessor {
 public:
     // Start processing from an immutable authoritative revision snapshot.

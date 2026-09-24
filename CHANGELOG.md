@@ -13,6 +13,45 @@ The format follows a release-focused pattern:
 
 ---
 
+## v0.4.0 - 2026-09-23
+
+### Added
+
+- Real-scale camera navigation with double-precision world/screen transforms, fit-to-bounds, grid, axes, and render-layer composition.
+- Generic point, polyline, polygon, rectangle, circle, text, reference-image, and guide object records with stable identity, layers, levels, visibility, and locking.
+- Command-backed generic object creation, editing, deletion, undo/redo, deterministic selection, hit testing, snapping, constraints, and reference calibration.
+- Qt canvas workspace with hierarchy and inspector docks, keyboard navigation, command-palette access, accessible naming, and non-color state cues.
+
+### Changed
+
+- Promoted Atlas to the v0.4.0 canvas drafting and generic object editing release.
+- Preserved project schema version `1` while extending optional generic object records and compatibility-safe persistence.
+
+### Fixed
+
+- Added duplicate-ID, invalid-reference, authoritative-object tamper, unsafe reference-path, and degenerate-calibration validation.
+- Corrected deterministic hit-test ordering and keyboard camera navigation behavior.
+
+### Testing / Validation
+
+- 101 out of 101 headless tests passed.
+- 4 out of 4 official Qt UI tests passed.
+- Official Qt build and `windeployqt` deployment passed.
+- Architecture governance and `git diff --check` passed.
+
+### Compatibility / Migration
+
+- Project schema remains version `1`; v0.3.1 packages and compatibility fixtures remain supported.
+- No geometry-engine, exporter, or plugin API version changed.
+
+### Known Limitations
+
+- Final long-term geometry-library selection remains deferred behind ADR-0004.
+- Broader WCAG certification and cross-platform graphics validation remain future hardening work.
+- Road authoring, elevation, child Maps, exporters, plugins, and multithreaded scheduling remain deferred.
+
+---
+
 ## v0.3.1 - 2026-09-23
 
 ### Added

@@ -10,7 +10,7 @@ date: 2026-09-20
 
 # Atlas Implementation Roadmap
 
-> **Current status:** `v0.3.1` — v0.3 Validation Audit and Test Hardening — **Completed** · Next: `v0.4.0` — Canvas Drafting and Generic Object Editing
+> **Current status:** `v0.4.0` — Canvas Drafting and Generic Object Editing — **Completed** · Next: `v0.5.0` — RoadSpline Stationing and Derived Geometry
 
 ## Document purpose
 

@@ -106,6 +106,60 @@ Revision RepairProjectCommand::apply(const Revision& current) const {
     return Revision{current.number + 1, repairedProject_, current.selection};
 }
 
+CreateMapObjectCommand::CreateMapObjectCommand(
+    domain::MapObject object,
+    std::uint64_t expectedRevision)
+    : object_(std::move(object)), expectedRevision_(expectedRevision) {}
+
+const char* CreateMapObjectCommand::name() const noexcept { return "create-map-object"; }
+std::optional<std::uint64_t> CreateMapObjectCommand::expectedRevision() const noexcept {
+    return expectedRevision_;
+}
+std::string CreateMapObjectCommand::coalesceKey() const { return {}; }
+Revision CreateMapObjectCommand::apply(const Revision& current) const {
+    if (current.project.rootMap().findObject(object_.id()) != nullptr) {
+        throw std::invalid_argument("MapObject already exists.");
+    }
+    auto map = current.project.rootMap().withObject(object_);
+    return Revision{current.number + 1, current.project.withRootMap(std::move(map)), current.selection};
+}
+
+EditMapObjectCommand::EditMapObjectCommand(
+    domain::MapObject object,
+    std::uint64_t expectedRevision)
+    : object_(std::move(object)), expectedRevision_(expectedRevision) {}
+
+const char* EditMapObjectCommand::name() const noexcept { return "edit-map-object"; }
+std::optional<std::uint64_t> EditMapObjectCommand::expectedRevision() const noexcept {
+    return expectedRevision_;
+}
+std::string EditMapObjectCommand::coalesceKey() const { return "edit-map-object:" + object_.id(); }
+Revision EditMapObjectCommand::apply(const Revision& current) const {
+    if (current.project.rootMap().findObject(object_.id()) == nullptr) {
+        throw std::invalid_argument("MapObject does not exist.");
+    }
+    auto map = current.project.rootMap().withObject(object_);
+    return Revision{current.number + 1, current.project.withRootMap(std::move(map)), current.selection};
+}
+
+DeleteMapObjectCommand::DeleteMapObjectCommand(
+    std::string objectId,
+    std::uint64_t expectedRevision)
+    : objectId_(std::move(objectId)), expectedRevision_(expectedRevision) {}
+
+const char* DeleteMapObjectCommand::name() const noexcept { return "delete-map-object"; }
+std::optional<std::uint64_t> DeleteMapObjectCommand::expectedRevision() const noexcept {
+    return expectedRevision_;
+}
+std::string DeleteMapObjectCommand::coalesceKey() const { return {}; }
+Revision DeleteMapObjectCommand::apply(const Revision& current) const {
+    if (current.project.rootMap().findObject(objectId_) == nullptr) {
+        throw std::invalid_argument("MapObject does not exist.");
+    }
+    auto map = current.project.rootMap().withoutObject(objectId_);
+    return Revision{current.number + 1, current.project.withRootMap(std::move(map)), current.selection};
+}
+
 // Apply a project replacement to a copied revision.
 Revision ReplaceProjectCommand::apply(const Revision& current) const {
     return Revision{current.number + 1, project_, current.selection};
