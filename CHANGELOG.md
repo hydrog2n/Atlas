@@ -13,6 +13,47 @@ The format follows a release-focused pattern:
 
 ---
 
+## v0.5.0 - 2026-10-02
+
+### Added
+
+- Qt desktop RoadSpline authoring with polyline, cubic Bezier, and fixed-radius arc tools; stable station anchors; RoadSegment hierarchy; derived road-envelope previews; and geometry diagnostics.
+- Preview/Apply/Cancel workflows for road creation, control-point editing, endpoint extension/shortening, boundary moves, split, merge, reverse, and delete, with undo/redo.
+- Keyboard command access, accessible Inspector controls, station measurement, overlap cycling, grid snapping, and package New/Open/Save/Save As workflows.
+- Explicit, transactional schema-1 to schema-2 migration consent when saving RoadSpline data into a schema-1 package.
+
+### Changed
+
+- Promoted Atlas to the v0.5.0 RoadSpline stationing and derived geometry release.
+- Kept lane-native cross-sections, connectivity, junctions, elevation, and production export in later releases.
+
+### Fixed
+
+- Road deletion now confirms and removes owned RoadSegments atomically while preserving default fail-closed command behavior.
+- Newly created roads fit into the canvas; Inspector scaling, focus visibility, overlap selection, and ownership context were corrected.
+
+### Testing / Validation
+
+- 188/188 headless CTest tests passed.
+- 218/218 Qt build-directory CTest tests passed, including road-authoring UI, accessibility, visual scaling/contrast, and desktop fixture replay.
+- Retained empty-project, minimal-road, and split-road fixtures round-trip through desktop workflows without normalized-source drift.
+- Official Qt configure/build/deployment, architecture governance, and `git diff --check` passed.
+- Development Authenticode signing and verification: see Phase 4 evidence in the development log.
+
+### Compatibility / Migration
+
+- New packages use schema generation 2 for first-class RoadSpline/RoadSegment source records.
+- Schema-1 packages remain schema 1 on ordinary saves; adding road records requires explicit transactional migration to schema 2.
+- No geometry-engine, exporter, or plugin API version changed.
+
+### Known Limitations
+
+- Lane-native cross-section editing and lineage, network connectivity/junctions, elevation, and production export remain planned.
+- External screen-reader sessions and physical high-density monitor hardware were not tested; Qt accessibility interfaces, contrast thresholds, keyboard workflows, and Qt scale-factor 2 were validated.
+- The development code-signing certificate is self-signed; its local validity does not imply public trust.
+
+---
+
 ## v0.4.0 - 2026-09-23
 
 ### Added

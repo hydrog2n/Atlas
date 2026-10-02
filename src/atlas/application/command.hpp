@@ -1,6 +1,8 @@
 #pragma once
 
 #include "atlas/domain/project.hpp"
+#include "atlas/geometry/envelope.hpp"
+#include "atlas/geometry/tolerance.hpp"
 
 #include <cstdint>
 #include <map>
@@ -29,6 +31,7 @@ struct Diagnostic {
     std::string message;
     std::uint64_t revision = 0;
     std::vector<std::string> repairIds;
+    bool blocksCommit = true;
 };
 
 struct StationRange {
@@ -118,6 +121,12 @@ struct Preview {
     std::vector<std::string> impactIds;
     std::vector<Invalidation> invalidations;
     std::vector<Diagnostic> diagnostics;
+    struct RoadEnvelope {
+        std::string roadSplineId;
+        geometry::RoadEnvelopeResult result;
+        bool cacheHit = false;
+    };
+    std::vector<RoadEnvelope> roadEnvelopes;
 };
 
 class Command {
@@ -128,6 +137,8 @@ public:
     virtual std::optional<std::uint64_t> expectedRevision() const noexcept = 0;
     virtual std::string coalesceKey() const = 0;
     virtual std::vector<Diagnostic> validate(const Revision& current) const;
+    virtual std::vector<Invalidation> invalidations(
+        const Revision& current, const Revision& candidate) const;
     virtual Revision apply(const Revision& current) const = 0;
 };
 
@@ -201,6 +212,173 @@ private:
     std::uint64_t expectedRevision_;
 };
 
+class CreateRoadSplineCommand final : public Command {
+public:
+    CreateRoadSplineCommand(
+        domain::RoadSpline road,
+        std::uint64_t expectedRevision,
+        double placeholderWidthMeters = 8.0);
+    const char* name() const noexcept override;
+    std::optional<std::uint64_t> expectedRevision() const noexcept override;
+    std::string coalesceKey() const override;
+    Revision apply(const Revision& current) const override;
+
+private:
+    domain::RoadSpline road_;
+    std::uint64_t expectedRevision_;
+    double placeholderWidthMeters_;
+};
+
+class EditRoadSplineCommand final : public Command {
+public:
+    EditRoadSplineCommand(domain::RoadSpline road, std::uint64_t expectedRevision);
+    const char* name() const noexcept override;
+    std::optional<std::uint64_t> expectedRevision() const noexcept override;
+    std::string coalesceKey() const override;
+    std::vector<Diagnostic> validate(const Revision& current) const override;
+    Revision apply(const Revision& current) const override;
+
+private:
+    domain::RoadSpline road_;
+    std::uint64_t expectedRevision_;
+};
+
+class ExtendRoadSplineCommand final : public Command {
+public:
+    ExtendRoadSplineCommand(std::string roadSplineId, geometry::Point2D newEnd, std::uint64_t expectedRevision);
+    const char* name() const noexcept override;
+    std::optional<std::uint64_t> expectedRevision() const noexcept override;
+    std::string coalesceKey() const override;
+    Revision apply(const Revision& current) const override;
+
+private:
+    std::string roadSplineId_;
+    geometry::Point2D newEnd_;
+    std::uint64_t expectedRevision_;
+};
+
+enum class ShortenResolution { cancel, moveDependents, deleteDependents };
+
+class ShortenRoadSplineCommand final : public Command {
+public:
+    ShortenRoadSplineCommand(
+        std::string roadSplineId,
+        geometry::Point2D newEnd,
+        std::uint64_t expectedRevision,
+        ShortenResolution resolution = ShortenResolution::cancel);
+    const char* name() const noexcept override;
+    std::optional<std::uint64_t> expectedRevision() const noexcept override;
+    std::string coalesceKey() const override;
+    Revision apply(const Revision& current) const override;
+
+private:
+    std::string roadSplineId_;
+    geometry::Point2D newEnd_;
+    std::uint64_t expectedRevision_;
+    ShortenResolution resolution_;
+};
+
+class ReverseRoadSplineCommand final : public Command {
+public:
+    ReverseRoadSplineCommand(std::string roadSplineId, std::uint64_t expectedRevision);
+    const char* name() const noexcept override;
+    std::optional<std::uint64_t> expectedRevision() const noexcept override;
+    std::string coalesceKey() const override;
+    Revision apply(const Revision& current) const override;
+
+private:
+    std::string roadSplineId_;
+    std::uint64_t expectedRevision_;
+};
+
+enum class RoadDeleteResolution { cancel, deleteOwnedSegments };
+
+class DeleteRoadSplineCommand final : public Command {
+public:
+    DeleteRoadSplineCommand(
+        std::string roadSplineId,
+        std::uint64_t expectedRevision,
+        RoadDeleteResolution resolution = RoadDeleteResolution::cancel);
+    const char* name() const noexcept override;
+    std::optional<std::uint64_t> expectedRevision() const noexcept override;
+    std::string coalesceKey() const override;
+    Revision apply(const Revision& current) const override;
+
+private:
+    std::string roadSplineId_;
+    std::uint64_t expectedRevision_;
+    RoadDeleteResolution resolution_;
+};
+
+class SplitRoadSegmentCommand final : public Command {
+public:
+    SplitRoadSegmentCommand(
+        std::string roadSplineId,
+        std::string segmentId,
+        double splitStation,
+        std::uint64_t expectedRevision);
+    const char* name() const noexcept override;
+    std::optional<std::uint64_t> expectedRevision() const noexcept override;
+    std::string coalesceKey() const override;
+    std::vector<Invalidation> invalidations(
+        const Revision& current, const Revision& candidate) const override;
+    Revision apply(const Revision& current) const override;
+
+private:
+    std::string roadSplineId_;
+    std::string segmentId_;
+    double splitStation_;
+    std::uint64_t expectedRevision_;
+};
+
+class MoveRoadSegmentBoundaryCommand final : public Command {
+public:
+    MoveRoadSegmentBoundaryCommand(
+        std::string roadSplineId,
+        std::string boundaryAnchorId,
+        double newStation,
+        std::uint64_t expectedRevision);
+    const char* name() const noexcept override;
+    std::optional<std::uint64_t> expectedRevision() const noexcept override;
+    std::string coalesceKey() const override;
+    std::vector<Invalidation> invalidations(
+        const Revision& current, const Revision& candidate) const override;
+    Revision apply(const Revision& current) const override;
+
+private:
+    std::string roadSplineId_;
+    std::string boundaryAnchorId_;
+    double newStation_;
+    std::uint64_t expectedRevision_;
+};
+
+enum class SegmentMergeSource { upstream, downstream };
+using SegmentMergeResolutions = std::map<std::string, SegmentMergeSource>;
+
+class MergeRoadSegmentsCommand final : public Command {
+public:
+    MergeRoadSegmentsCommand(
+        std::string roadSplineId,
+        std::string upstreamSegmentId,
+        std::string downstreamSegmentId,
+        std::uint64_t expectedRevision,
+        SegmentMergeResolutions resolutions = {});
+    const char* name() const noexcept override;
+    std::optional<std::uint64_t> expectedRevision() const noexcept override;
+    std::string coalesceKey() const override;
+    std::vector<Invalidation> invalidations(
+        const Revision& current, const Revision& candidate) const override;
+    Revision apply(const Revision& current) const override;
+    std::vector<std::string> conflictingFields(const Revision& current) const;
+
+private:
+    std::string roadSplineId_;
+    std::string upstreamSegmentId_;
+    std::string downstreamSegmentId_;
+    std::uint64_t expectedRevision_;
+    SegmentMergeResolutions resolutions_;
+};
+
 class CommandProcessor {
 public:
     // Start processing from an immutable authoritative revision snapshot.
@@ -220,6 +398,7 @@ public:
     bool redo();
     bool canUndo() const noexcept;
     bool canRedo() const noexcept;
+    const std::vector<Invalidation>& lastInvalidations() const noexcept;
     // Accept derived work only when it was calculated from the current revision.
     bool acceptResult(const VersionedResult& result);
     void registerCacheDependencies(std::string cacheId, std::vector<std::string> sourceDependencies);
@@ -235,13 +414,20 @@ public:
     const std::vector<Diagnostic>& diagnostics() const noexcept;
 
 private:
+    struct HistoryEntry {
+        Revision revision;
+        std::vector<Invalidation> invalidations;
+    };
+
     Revision current_;
-    std::vector<Revision> undoStack_;
-    std::vector<Revision> redoStack_;
+    std::vector<HistoryEntry> undoStack_;
+    std::vector<HistoryEntry> redoStack_;
+    std::vector<Invalidation> lastInvalidations_;
     std::vector<Diagnostic> diagnostics_;
     DependencyGraph dependencies_;
     std::map<std::string, VersionedResult> caches_;
     std::map<std::string, std::vector<std::string>> cacheDependencies_;
+    mutable geometry::RoadEnvelopeCache roadEnvelopeCache_;
     std::string lastCoalesceKey_;
 };
 

@@ -19,7 +19,7 @@ namespace {
 using json = nlohmann::ordered_json;
 
 constexpr const char* formatIdentifier = "atlas.project";
-constexpr int schemaVersion = 1;
+constexpr int schemaVersion = 2;
 // Keep individual JSON records bounded before parsing them into memory.
 constexpr std::uintmax_t maximumJsonBytes = 8 * 1024 * 1024;
 constexpr std::size_t maximumJsonDepth = 64;
@@ -116,11 +116,12 @@ void rejectUnsafeComponent(const std::string& component, const char* label) {
 
 json makeManifest(
     const domain::Project& project,
-    const std::map<std::string, std::string>& authoritativeHashes) {
+    const std::map<std::string, std::string>& authoritativeHashes,
+    int packageSchema = schemaVersion) {
     // The manifest describes the logical package and the authoritative files it protects.
     return json{
         {"format", formatIdentifier},
-        {"schemaVersion", schemaVersion},
+        {"schemaVersion", packageSchema},
         {"projectId", project.id()},
         {"units", "m"},
         {"requiredFeatures", json::array()},
@@ -128,7 +129,7 @@ json makeManifest(
         {"authoritativeFiles", authoritativeHashes},
         {"referenceDescriptors", json::array()},
         {"reverseReferences", json::object()},
-        {"generatorVersions", json{{"atlas", "0.4.0"}}}
+        {"generatorVersions", json{{"atlas", "0.5.0"}}}
     };
 }
 
@@ -140,7 +141,7 @@ void validateManifest(
         throw std::invalid_argument("Unsupported package format.");
     }
     const auto packageSchema = manifest.value("schemaVersion", 0);
-    if ((!allowNewerSchema && packageSchema != schemaVersion) || packageSchema < 1) {
+    if (packageSchema < 1 || (!allowNewerSchema && packageSchema > schemaVersion)) {
         throw std::invalid_argument("Unsupported package schema version.");
     }
     if (manifest.value("projectId", "") != project.id()) {
@@ -148,6 +149,15 @@ void validateManifest(
     }
     if (!manifest.contains("authoritativeFiles") || !manifest["authoritativeFiles"].is_object()) {
         throw std::invalid_argument("Package manifest authoritative file hashes are required.");
+    }
+    rejectUnsafeComponent(project.rootMap().id, "root map");
+    const auto mapPrefix = "maps/" + project.rootMap().id + "/";
+    const std::array<std::string, 4> requiredFiles{
+        "project.json", mapPrefix + "map.json", mapPrefix + "objects.json", mapPrefix + "network.json"};
+    for (const auto& relativePath : requiredFiles) {
+        if (!manifest["authoritativeFiles"].contains(relativePath)) {
+            throw std::invalid_argument("Package manifest is missing an authoritative file hash: " + relativePath);
+        }
     }
 }
 
@@ -164,6 +174,9 @@ void validateProjectHash(const std::filesystem::path& packagePath, const json& m
     // Hash validation detects edits or corruption that leave JSON syntactically valid.
     for (const auto& [relativePath, expectedValue] : manifest["authoritativeFiles"].items()) {
         const std::filesystem::path relative(relativePath);
+        if (relative.has_root_name() || relative.has_root_directory()) {
+            throw std::invalid_argument("Authoritative file path must be relative: " + relativePath);
+        }
         rejectUnsafePackagePath(relative);
         const auto actual = contentHash(readFileText(packagePath / relative));
         if (expectedValue.get<std::string>() != actual) {
@@ -207,7 +220,7 @@ void rotateCheckpoint(const std::filesystem::path& packagePath, std::size_t coun
 
 Package Package::fromProject(const domain::Project& project) {
     // Wrap the domain snapshot without giving persistence ownership of mutation.
-    return Package(project);
+    return Package(project, false, schemaVersion);
 }
 
 Package Package::load(const std::filesystem::path& packagePath, LoadOptions options) {
@@ -220,8 +233,16 @@ Package Package::load(const std::filesystem::path& packagePath, LoadOptions opti
 
     // Read the manifest and source independently so identity and content hashes can be checked.
     const auto manifest = readJson(packagePath / "manifest.json");
-    const auto project = domain::Project::fromJson(readJson(packagePath / "project.json").dump());
     const auto packageSchema = manifest.value("schemaVersion", 0);
+    const auto projectRecord = readJson(packagePath / "project.json");
+    if (projectRecord.value("schemaVersion", 0) != packageSchema) {
+        throw std::invalid_argument("Package manifest and project schema generations do not match.");
+    }
+    const auto project = domain::Project::fromJson(projectRecord.dump());
+    if (packageSchema == 1 &&
+        (!project.roadSplines().empty() || !project.roadSegments().empty())) {
+        throw std::invalid_argument("Schema generation 1 cannot contain RoadSpline or RoadSegment records.");
+    }
     const bool newerSchema = packageSchema > schemaVersion;
     // Newer schemas may be inspected only when the caller explicitly allows read-only mode.
     if (newerSchema && !options.allowNewerSchemaReadOnly) {
@@ -229,19 +250,27 @@ Package Package::load(const std::filesystem::path& packagePath, LoadOptions opti
     }
     validateManifest(manifest, project, options.allowNewerSchemaReadOnly);
     validateProjectHash(packagePath, manifest);
-    return Package(project, newerSchema);
+    return Package(project, newerSchema, packageSchema);
 }
 
 MigrationReport Package::migrate(
     const std::filesystem::path& packagePath,
     int targetSchema,
-    bool dryRun) {
+    bool dryRun,
+    SaveOptions saveOptions) {
     // Migration reports unsupported paths without mutating the source package.
-    rejectUnsafePackagePath(packagePath);
-    const auto manifest = readJson(packagePath / "manifest.json");
-    const int sourceSchema = manifest.value("schemaVersion", 0);
+    int sourceSchema = 0;
+    json manifest;
+    try {
+        rejectUnsafePackagePath(packagePath);
+        manifest = readJson(packagePath / "manifest.json");
+        sourceSchema = manifest.value("schemaVersion", 0);
+    } catch (const std::exception& error) {
+        return MigrationReport{sourceSchema, targetSchema, false, dryRun, false,
+            error.what(), {}};
+    }
     // Reject migration requests that have no supported version direction.
-    if (targetSchema < sourceSchema || targetSchema > schemaVersion || sourceSchema < 0) {
+    if (targetSchema < 1 || targetSchema < sourceSchema || targetSchema > schemaVersion || sourceSchema < 0) {
         return MigrationReport{sourceSchema, targetSchema, false, dryRun, false,
             "Unsupported migration target schema.", {}};
     }
@@ -250,28 +279,54 @@ MigrationReport Package::migrate(
     MigrationReport report{sourceSchema, targetSchema, sourceSchema != targetSchema, dryRun, true, "", {}};
     // A current-schema package needs no transformation.
     if (sourceSchema == targetSchema) {
+        try {
+            static_cast<void>(Package::load(packagePath));
+        } catch (const std::exception& error) {
+            return MigrationReport{sourceSchema, targetSchema, false, dryRun, false,
+                std::string("Source package validation failed: ") + error.what(), {}};
+        }
         report.changes.push_back("Package already uses the requested schema.");
         return report;
     }
-    // v0.3 currently supports only the explicit schema 0 to schema 1 path.
-    if (sourceSchema != 0 || targetSchema != schemaVersion) {
+    if (sourceSchema == 1) {
+        try {
+            static_cast<void>(Package::load(packagePath));
+        } catch (const std::exception& error) {
+            return MigrationReport{sourceSchema, targetSchema, false, dryRun, false,
+                std::string("Source package validation failed: ") + error.what(), {}};
+        }
+    }
+    const auto supportedMigration =
+        (sourceSchema == 0 && targetSchema == 1) || (sourceSchema == 1 && targetSchema == 2);
+    if (!supportedMigration) {
         return MigrationReport{sourceSchema, targetSchema, false, dryRun, false,
             "No migration path exists for the requested schemas.", {}};
     }
     // Dry-run reports the planned transformation without writing files.
     if (dryRun) {
-        report.changes.push_back("Schema 0 project records will be rewritten as schema 1.");
+        report.changes.push_back(sourceSchema == 0
+            ? "Schema 0 project records will be rewritten as schema 1."
+            : "Schema 1 packages will be rewritten with additive schema-2 road arrays and policy defaults.");
         return report;
     }
 
-    const auto project = domain::Project::fromJson(readJson(packagePath / "project.json").dump());
+    const auto project = sourceSchema == 0
+        ? domain::Project::fromJson(readJson(packagePath / "project.json").dump())
+        : Package::load(packagePath).project();
+    const auto backupPath = packagePath.parent_path() /
+        (packagePath.filename().string() + ".checkpoint-0");
+    saveOptions.schemaGeneration = targetSchema;
+    saveOptions.checkpointCount = std::max<std::size_t>(1, saveOptions.checkpointCount);
     try {
-        Package(project).save(packagePath);
+        Package(project, false, targetSchema).save(packagePath, saveOptions);
     } catch (const std::exception& error) {
         return MigrationReport{sourceSchema, targetSchema, true, dryRun, false,
             error.what(), {}};
     }
-    report.changes.push_back("Rewrote the schema 0 package through the schema 1 writer.");
+    report.changes.push_back(sourceSchema == 0
+        ? "Rewrote the schema 0 package through the schema 1 writer."
+        : "Rewrote the schema 1 package through the schema 2 writer; recoverable prior package: " +
+            backupPath.string());
     return report;
 }
 
@@ -289,6 +344,10 @@ void Package::save(const std::filesystem::path& packagePath, SaveOptions options
     // Newer-schema packages are protected from accidental downgrade writes.
     if (readOnly_) {
         throw std::runtime_error("Newer-schema packages are read-only.");
+    }
+    const auto targetSchema = options.schemaGeneration == 0 ? schemaGeneration_ : options.schemaGeneration;
+    if (targetSchema < 1 || targetSchema > schemaVersion) {
+        throw std::invalid_argument("Unsupported package schema generation.");
     }
     rejectUnsafePackagePath(packagePath);
 
@@ -314,7 +373,7 @@ void Package::save(const std::filesystem::path& packagePath, SaveOptions options
         std::filesystem::create_directories(stagingPath / "assets");
         std::filesystem::create_directories(stagingPath / "exports");
         std::filesystem::create_directories(stagingPath / "cache");
-        const auto projectJson = project_.normalizedJson();
+        const auto projectJson = project_.normalizedJson(targetSchema);
         json mapJson{
             {"id", project_.rootMap().id},
             {"type", "core.Map"},
@@ -354,7 +413,7 @@ void Package::save(const std::filesystem::path& packagePath, SaveOptions options
             {"maps/" + project_.rootMap().id + "/map.json", contentHash(mapText)},
             {"maps/" + project_.rootMap().id + "/objects.json", contentHash(objectsText)},
             {"maps/" + project_.rootMap().id + "/network.json", contentHash(networkText)}};
-        writeJson(stagingPath / "manifest.json", makeManifest(project_, authoritativeHashes));
+        writeJson(stagingPath / "manifest.json", makeManifest(project_, authoritativeHashes, targetSchema));
         validateManifest(readJson(stagingPath / "manifest.json"), project_);
         validateProjectHash(stagingPath, readJson(stagingPath / "manifest.json"));
         // Failure points exercise the rollback boundary without mutating the live package.
@@ -438,15 +497,15 @@ std::string Package::manifestJson() const {
         objectsJson.push_back(object.normalizedJson());
     }
     const std::map<std::string, std::string> authoritativeHashes{
-        {"project.json", contentHash(project_.normalizedJson())},
+        {"project.json", contentHash(project_.normalizedJson(schemaGeneration_))},
         {"maps/" + project_.rootMap().id + "/map.json", contentHash(mapJson.dump(2) + "\n")},
         {"maps/" + project_.rootMap().id + "/objects.json", contentHash(objectsJson.dump(2) + "\n")},
         {"maps/" + project_.rootMap().id + "/network.json", contentHash("[]\n")}};
-    return makeManifest(project_, authoritativeHashes).dump(2) + "\n";
+    return makeManifest(project_, authoritativeHashes, schemaGeneration_).dump(2) + "\n";
 }
 
-Package::Package(domain::Project project, bool readOnly)
-    : project_(std::move(project)), readOnly_(readOnly) {}
+Package::Package(domain::Project project, bool readOnly, int schemaGeneration)
+    : project_(std::move(project)), readOnly_(readOnly), schemaGeneration_(schemaGeneration) {}
 
 std::string MigrationReport::toJson() const {
     // Expose migration results in a stable machine-readable format.

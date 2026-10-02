@@ -56,3 +56,55 @@ TEST(GenericWorkflow, CreateEditSaveReopenAndUndo) {
     ASSERT_TRUE(processor.undo());
     EXPECT_DOUBLE_EQ(processor.current().project.rootMap().findObject("point-1")->geometry()["x"], 1.0);
 }
+
+// Verifies the v0.5 road workflow remaps anchors, segments, persists schema-2 source, and reverses exactly twice.
+TEST(RoadWorkflow, CreateEditRemapSplitMergeSaveReopenReverseTwice) {
+    TemporaryWorkflowPackage temporary;
+    const auto packagePath = temporary.path() / "road-project.atlas";
+    atlas::application::CommandProcessor processor({
+        0, atlas::domain::Project::empty("road-project", "root-map"), {}});
+    atlas::domain::RoadSpline road{
+        "road-1", "root-map", nlohmann::json::array({nlohmann::json{
+            {"id", "line"}, {"kind", "line"},
+            {"startControlPointId", "a"}, {"endControlPointId", "b"},
+            {"start", {{"x", 0.0}, {"y", 0.0}}},
+            {"end", {{"x", 10.0}, {"y", 0.0}}}}}),
+        "start-to-end", {}, nullptr, nlohmann::json::object(), nlohmann::json::array()};
+    processor.commit(atlas::application::CreateRoadSplineCommand(road, processor.current().number));
+
+    auto editedRoad = processor.current().project.roadSplines().front();
+    editedRoad.stationAnchors.push_back({
+        "anchor-interior", 8.0, atlas::domain::AnchorAffinity::geometryLocked,
+        {0.8, "line", 0.8, {8.0, 0.0}}});
+    processor.commit(atlas::application::EditRoadSplineCommand(editedRoad, processor.current().number));
+
+    editedRoad = processor.current().project.roadSplines().front();
+    editedRoad.primitives[0]["end"]["x"] = 8.0;
+    editedRoad.primitives[0]["end"]["y"] = 6.0;
+    processor.commit(atlas::application::EditRoadSplineCommand(editedRoad, processor.current().number));
+    const auto& remappedAnchor = processor.current().project.roadSplines().front().stationAnchors.back();
+    EXPECT_DOUBLE_EQ(remappedAnchor.resolvedStation, 8.0);
+    EXPECT_DOUBLE_EQ(remappedAnchor.remapSignature.worldPosition.x, 6.4);
+    EXPECT_DOUBLE_EQ(remappedAnchor.remapSignature.worldPosition.y, 4.8);
+
+    auto& currentRoad = processor.current().project.roadSplines().front();
+    const auto sourceSegmentId = currentRoad.segmentIds.front();
+    processor.commit(atlas::application::SplitRoadSegmentCommand(
+        "road-1", sourceSegmentId, 4.0, processor.current().number));
+    const auto splitRoad = processor.current().project.roadSplines().front();
+    processor.commit(atlas::application::MergeRoadSegmentsCommand(
+        "road-1", splitRoad.segmentIds[0], splitRoad.segmentIds[1], processor.current().number));
+    const auto beforeSave = processor.current().normalizedSource();
+
+    atlas::persistence::Package::fromProject(processor.current().project).save(packagePath);
+    const auto reopened = atlas::persistence::Package::load(packagePath).project();
+    EXPECT_EQ(reopened.normalizedJson(), beforeSave);
+    const auto manifest = nlohmann::json::parse(atlas::persistence::Package::fromProject(reopened).manifestJson());
+    EXPECT_EQ(manifest["schemaVersion"], 2);
+
+    const auto beforeReverse = reopened.normalizedJson();
+    processor = atlas::application::CommandProcessor({processor.current().number, reopened, {}});
+    processor.commit(atlas::application::ReverseRoadSplineCommand("road-1", processor.current().number));
+    processor.commit(atlas::application::ReverseRoadSplineCommand("road-1", processor.current().number));
+    EXPECT_EQ(processor.current().normalizedSource(), beforeReverse);
+}

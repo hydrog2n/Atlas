@@ -1,5 +1,7 @@
 #pragma once
 
+#include "atlas/domain/station_anchor.hpp"
+
 #include <nlohmann/json.hpp>
 
 #include <optional>
@@ -19,6 +21,43 @@ struct DisplayLayer {
 struct SpatialLevel {
     std::string id;
     std::string name;
+};
+
+struct RoadSpline {
+    std::string id;
+    std::string mapId;
+    nlohmann::json primitives = nlohmann::json::array();
+    std::string direction = "start-to-end";
+    std::vector<std::string> segmentIds;
+    nlohmann::json styleRef = nullptr;
+    nlohmann::json metadata = nlohmann::json::object();
+    nlohmann::json networkRefs = nlohmann::json::array();
+    std::vector<StationAnchor> stationAnchors;
+    nlohmann::json unknownFields = nlohmann::json::object();
+
+    static RoadSpline fromJson(const nlohmann::json& record);
+    nlohmann::json normalizedJson() const;
+};
+
+struct RoadSegment {
+    std::string id;
+    std::string mapId;
+    std::string roadSplineId;
+    std::string startAnchorId;
+    std::string endAnchorId;
+    nlohmann::json crossSectionState = nlohmann::json::object();
+    nlohmann::json lineage = nlohmann::json::object();
+    nlohmann::json styleOverrides = nlohmann::json::object();
+    nlohmann::json schemaProperties = nlohmann::json::object();
+    nlohmann::json spatialReferences = nlohmann::json::array();
+    nlohmann::json boundaryAttachments = nlohmann::json::array();
+    nlohmann::json metadata = nlohmann::json::object();
+    // Each station attachment has a stable ID and StationAnchor reference; segment membership defines ownership.
+    nlohmann::json stationAttachments = nlohmann::json::array();
+    nlohmann::json unknownFields = nlohmann::json::object();
+
+    static RoadSegment fromJson(const nlohmann::json& record);
+    nlohmann::json normalizedJson() const;
 };
 
 class MapObject {
@@ -88,25 +127,40 @@ public:
     const std::string& id() const noexcept;
     const Map& rootMap() const noexcept;
     const nlohmann::json& extensions() const noexcept;
+    const nlohmann::json& geometryPolicy() const;
     // Preserve recognized extension data separately from fields Atlas does not understand.
     const nlohmann::json& unknownFields() const noexcept;
+    const std::vector<RoadSpline>& roadSplines() const noexcept;
+    const std::vector<RoadSegment>& roadSegments() const noexcept;
 
     // Return a copy with one authoritative root-map snapshot replaced.
     Project withRootMap(Map rootMap) const;
+    Project withGeometryPolicy(nlohmann::json policy) const;
+    Project withRoadSpline(RoadSpline roadSpline) const;
+    Project withRoadSplineAndSegments(RoadSpline roadSpline, std::vector<RoadSegment> segments) const;
+    Project withReplacedRoadSpline(RoadSpline roadSpline) const;
+    Project withReplacedRoadTopology(RoadSpline roadSpline, std::vector<RoadSegment> segments) const;
+    Project withoutRoadSpline(const std::string& roadSplineId) const;
+    Project withoutRoadSplineAndSegments(const std::string& roadSplineId) const;
+    Project withRoadSegment(RoadSegment roadSegment) const;
 
     // Produce a canonical JSON representation for deterministic output.
-    std::string normalizedJson() const;
+    std::string normalizedJson(int schemaGeneration = 2) const;
 
 private:
     // Use the factory methods to create valid project instances.
     Project(
         std::string projectId,
         Map rootMap,
+        std::vector<RoadSpline> roadSplines = {},
+        std::vector<RoadSegment> roadSegments = {},
         nlohmann::json extensions = {},
         nlohmann::json unknownFields = {});
 
     std::string id_;
     Map rootMap_;
+    std::vector<RoadSpline> roadSplines_;
+    std::vector<RoadSegment> roadSegments_;
     nlohmann::json extensions_;
     // Unknown fields remain opaque so older versions can round-trip newer data.
     nlohmann::json unknownFields_;

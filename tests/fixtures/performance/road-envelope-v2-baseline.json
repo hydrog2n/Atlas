@@ -1,0 +1,26 @@
+{
+  "baselineDate": "2026-10-01",
+  "hardware": "AMD Ryzen 7 7800X3D 8-Core Processor",
+  "operatingSystem": "Windows",
+  "compiler": "MSVC 14.51.36231 x64",
+  "geometryEngineVersion": "atlas-curve-kernel-1",
+  "envelopeAlgorithmVersion": "atlas-road-envelope-2",
+  "cacheModel": "RoadEnvelopeCache keyed by authoritative source signature, algorithm/tolerance versions, and all options.",
+  "dataset": {
+    "centerline": "100m cubic Bezier",
+    "totalWidthMeters": 8.0,
+    "maximumStationStepMeters": 0.5,
+    "maximumChordErrorMeters": 0.01,
+    "stationQueriesPerSample": 500,
+    "repeatedSamples": 21,
+    "envelopeVertexCount": 514
+  },
+  "measurementsMilliseconds": {
+    "curveConstruction": 0.099,
+    "coldEnvelopeGeneration": 40.9207,
+    "stationQueryMedian": 4.9989,
+    "stationQueryP95": 5.7705,
+    "cachedEnvelopeLookupMedian": 0.014,
+    "cachedEnvelopeLookupP95": 0.0172
+  }
+}

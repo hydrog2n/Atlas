@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.25)
 # This is the top-level build definition for the Atlas project.
 # It tells CMake which language we use, which components to build,
 # and how the project is organized into libraries, executables, and tests.
-project(Atlas VERSION 0.4.0 LANGUAGES CXX)
+project(Atlas VERSION 0.5.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -25,6 +25,7 @@ find_package(nlohmann_json CONFIG REQUIRED)
 # This is deliberately separate from Qt and from the CLI/UI layer.
 add_library(atlas_domain STATIC
     src/atlas/domain/project.cpp
+    src/atlas/domain/station_anchor.cpp
 )
 target_include_directories(atlas_domain
     PUBLIC
@@ -59,12 +60,15 @@ add_library(atlas_geometry STATIC
     src/atlas/geometry/tolerance.cpp
     src/atlas/geometry/snap.cpp
     src/atlas/geometry/calibration.cpp
+    src/atlas/geometry/curve.cpp
+    src/atlas/geometry/envelope.cpp
 )
 target_include_directories(atlas_geometry
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 target_compile_features(atlas_geometry PUBLIC cxx_std_23)
+target_link_libraries(atlas_domain PUBLIC atlas_geometry)
 
 add_library(atlas_render STATIC
     src/atlas/render/camera.cpp
@@ -89,9 +93,10 @@ if(ATLAS_BUILD_UI)
 
     add_executable(atlas WIN32
         src/atlas/ui/main.cpp
+        src/atlas/ui/main_window.cpp
         src/atlas/ui/canvas_widget.cpp
     )
-    target_link_libraries(atlas PRIVATE atlas_domain atlas_application atlas_render Qt6::Widgets Qt6::OpenGLWidgets)
+    target_link_libraries(atlas PRIVATE atlas_domain atlas_application atlas_persistence atlas_render Qt6::Widgets Qt6::OpenGLWidgets)
     target_compile_definitions(atlas PRIVATE QT_NO_KEYWORDS)
 endif()
 
@@ -102,6 +107,7 @@ if(ATLAS_BUILD_TESTS)
 
     add_executable(atlas_domain_tests
         tests/atlas/domain/project_tests.cpp
+        tests/atlas/domain/station_anchor_tests.cpp
     )
     target_link_libraries(atlas_domain_tests
         PRIVATE
@@ -151,12 +157,17 @@ if(ATLAS_BUILD_TESTS)
         tests/atlas/geometry/geometry_tests.cpp
         tests/atlas/geometry/calibration_tests.cpp
         tests/atlas/geometry/performance_tests.cpp
+        tests/atlas/geometry/curve_tests.cpp
     )
     target_link_libraries(atlas_geometry_tests
         PRIVATE
             atlas_geometry
             atlas_render
+            nlohmann_json::nlohmann_json
             GTest::gtest_main
+    )
+    target_compile_definitions(atlas_geometry_tests PRIVATE
+        ATLAS_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
     )
     gtest_discover_tests(atlas_geometry_tests)
 
@@ -175,15 +186,21 @@ endif()
 if(ATLAS_BUILD_UI AND ATLAS_BUILD_TESTS)
     add_executable(atlas_ui_tests
         tests/atlas/ui/canvas_widget_tests.cpp
+        tests/atlas/ui/road_authoring_workflow_tests.cpp
+        src/atlas/ui/main_window.cpp
         src/atlas/ui/canvas_widget.cpp
     )
     target_link_libraries(atlas_ui_tests
         PRIVATE
             atlas_render
             atlas_application
+            atlas_persistence
             Qt6::Widgets
             Qt6::OpenGLWidgets
             GTest::gtest_main
+    )
+    target_compile_definitions(atlas_ui_tests PRIVATE
+        ATLAS_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
     )
     gtest_discover_tests(atlas_ui_tests)
 endif()

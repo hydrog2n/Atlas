@@ -1,0 +1,145 @@
+{
+  "id": "fixture-split-road",
+  "type": "core.Project",
+  "schemaVersion": 2,
+  "units": "m",
+  "maps": [
+    {
+      "id": "root-map",
+      "parentMapId": null,
+      "objects": [],
+      "networkObjects": []
+    }
+  ],
+  "extensions": {
+    "atlas.geometryPolicy": {
+      "miterLimitRatio": 4.0
+    }
+  },
+  "roadSplines": [
+    {
+      "id": "road-split",
+      "mapId": "root-map",
+      "future.example": {"sourceTag": "split-road"},
+      "direction": "start-to-end",
+      "primitives": [
+        {
+          "id": "centerline-1",
+          "kind": "line",
+          "startControlPointId": "point-start",
+          "endControlPointId": "point-end",
+          "start": {"x": 0.0, "y": 0.0},
+          "end": {"x": 10.0, "y": 0.0}
+        }
+      ],
+      "segmentIds": ["segment-upstream", "segment-downstream"],
+      "metadata": {"classification": "fixture"},
+      "stationAnchors": [
+        {
+          "id": "anchor-start",
+          "resolvedStation": 0.0,
+          "affinity": 0,
+          "remapSignature": {
+            "normalizedStation": 0.0,
+            "primitiveId": "centerline-1",
+            "primitiveT": 0.0,
+            "worldPosition": {"x": 0.0, "y": 0.0}
+          }
+        },
+        {
+          "id": "anchor-split",
+          "resolvedStation": 4.0,
+          "affinity": 2,
+          "remapSignature": {
+            "normalizedStation": 0.4,
+            "primitiveId": "centerline-1",
+            "primitiveT": 0.4,
+            "worldPosition": {"x": 4.0, "y": 0.0}
+          }
+        },
+        {
+          "id": "anchor-end",
+          "resolvedStation": 10.0,
+          "affinity": 1,
+          "remapSignature": {
+            "normalizedStation": 1.0,
+            "primitiveId": "centerline-1",
+            "primitiveT": 1.0,
+            "worldPosition": {"x": 10.0, "y": 0.0}
+          }
+        }
+      ]
+    }
+  ],
+  "roadSegments": [
+    {
+      "id": "segment-upstream",
+      "mapId": "root-map",
+      "roadSplineId": "road-split",
+      "startAnchorId": "anchor-start",
+      "endAnchorId": "anchor-split",
+      "crossSectionState": {
+        "kind": "uniform-placeholder",
+        "totalWidthMeters": 8.0,
+        "joinStyle": "round",
+        "elements": [
+          {
+            "id": "lane-left",
+            "typeId": "TravelLane",
+            "group": "left",
+            "orderKey": "1",
+            "widthProfile": {"constant": 4.0}
+          },
+          {
+            "id": "lane-right",
+            "typeId": "TravelLane",
+            "group": "right",
+            "orderKey": "1",
+            "widthProfile": {"constant": 4.0}
+          }
+        ]
+      },
+      "lineage": {"relation": "split-upstream", "parentSegmentId": "segment-source"}
+    },
+    {
+      "id": "segment-downstream",
+      "mapId": "root-map",
+      "roadSplineId": "road-split",
+      "future.example": {"unknownLaneMapping": ["lane-left-downstream"]},
+      "startAnchorId": "anchor-split",
+      "endAnchorId": "anchor-end",
+      "crossSectionState": {
+        "kind": "uniform-placeholder",
+        "totalWidthMeters": 8.0,
+        "joinStyle": "round",
+        "elements": [
+          {
+            "id": "lane-left-downstream",
+            "typeId": "TravelLane",
+            "group": "left",
+            "orderKey": "1",
+            "widthProfile": {"constant": 4.0},
+            "lineage": {"continuesFrom": "lane-left"}
+          },
+          {
+            "id": "lane-right-downstream",
+            "typeId": "TravelLane",
+            "group": "right",
+            "orderKey": "1",
+            "widthProfile": {"constant": 4.0},
+            "lineage": {"continuesFrom": "lane-right"}
+          }
+        ]
+      },
+      "lineage": {"relation": "split-downstream", "parentSegmentId": "segment-source"},
+      "metadata": {"reviewState": "retained"},
+      "stationAttachments": [
+        {
+          "id": "attachment-1",
+          "stationAnchorId": "anchor-split",
+          "crossSectionElementId": "lane-left-downstream"
+        }
+      ]
+    }
+  ]
+}

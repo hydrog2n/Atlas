@@ -9,6 +9,8 @@
 namespace atlas::persistence {
 
 struct SaveOptions {
+    // Zero preserves the package object's schema; new packages default to schema 2.
+    int schemaGeneration = 0;
     // A zero count disables checkpoint creation; otherwise the newest checkpoints are retained.
     std::size_t checkpointCount = 3;
     enum class FailurePoint {
@@ -57,7 +59,8 @@ public:
     static MigrationReport migrate(
         const std::filesystem::path& packagePath,
         int targetSchema,
-        bool dryRun = false);
+        bool dryRun = false,
+        SaveOptions saveOptions = {});
 
     // Save through a sibling staging directory before replacing the existing package.
     void save(const std::filesystem::path& packagePath, SaveOptions options = {}) const;
@@ -68,10 +71,11 @@ public:
     std::string manifestJson() const;
 
 private:
-    explicit Package(domain::Project project, bool readOnly = false);
+    explicit Package(domain::Project project, bool readOnly = false, int schemaGeneration = 2);
 
     domain::Project project_;
     bool readOnly_ = false;
+    int schemaGeneration_ = 2;
 };
 
 } // namespace atlas::persistence

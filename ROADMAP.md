@@ -3,14 +3,14 @@ title: Atlas Implementation Roadmap
 roadmap_version: 1.0
 canonical_specification: Atlas Master Design Specification Revision 3.0
 canonical_specification_path: .DESIGN/Atlas_Master_Design_Specification_Revision_3_0.md
-canonical_specification_sha256: b27e57d6d4b652696603bb0d018b4144e5750767d71dede1a3dfef7cd52ed655
+canonical_specification_sha256: EB0BB93618DCA38A39B3EB5A33ED4CD36B082EE615937B73B035031AB8DA4D01
 status: execution baseline
 date: 2026-09-20
 ---
 
 # Atlas Implementation Roadmap
 
-> **Current status:** `v0.4.0` — Canvas Drafting and Generic Object Editing — **Completed** · Next: `v0.5.0` — RoadSpline Stationing and Derived Geometry
+> **Current status:** `v0.5.0` — RoadSpline Stationing and Derived Geometry — **Completed** · Next: `v0.6.0` — Lane-Native Cross Sections and Stable Lineage
 
 ## Document purpose
 

@@ -1,0 +1,38 @@
+{
+  "schemaGeneration": 1,
+  "geometryEngineVersion": "atlas-curve-kernel-1",
+  "cases": [
+    {
+      "kind": "polyline",
+      "primitiveId": "line",
+      "controlPointIds": ["a", "b"],
+      "points": [[0.0, 0.0], [3.0, 4.0]],
+      "station": 2.5,
+      "length": 5.0,
+      "position": [1.5, 2.0],
+      "tangent": [0.6, 0.8]
+    },
+    {
+      "kind": "cubic-bezier",
+      "primitiveId": "bezier",
+      "controlPointIds": ["p0", "p1", "p2", "p3"],
+      "points": [[0.0, 0.0], [1.0, 0.0], [2.0, 0.0], [3.0, 0.0]],
+      "station": 1.5,
+      "length": 3.0,
+      "position": [1.5, 0.0],
+      "tangent": [1.0, 0.0]
+    },
+    {
+      "kind": "circular-arc",
+      "primitiveId": "arc",
+      "controlPointIds": ["a0", "a1"],
+      "points": [[0.0, 0.0], [2.0, 0.0]],
+      "radius": 1.4142135623730951,
+      "side": "left",
+      "station": 1.1107207345395915,
+      "length": 2.221441469079183,
+      "position": [1.0, 0.41421356237309515],
+      "tangent": [1.0, 0.0]
+    }
+  ]
+}

@@ -1,0 +1,89 @@
+Atlas Self-Signed Code Signing - Quick PowerShell Routine
+=========================================================
+
+PURPOSE
+-------
+Use this sequence after opening PowerShell in the build/archive folder
+that contains the atlas.exe you want to sign.
+
+The certificate should already have been created and installed in your
+CurrentUser certificate store with the subject:
+
+    CN=Hydrogen Studios, LLC
+
+
+STEP 1 - LOAD THE CODE-SIGNING CERTIFICATE
+-------------------------------------------
+
+# Search the current user's personal certificate store for code-signing
+# certificates, find the Hydrogen Studios, LLC certificate, and store it
+# in the $cert variable for the commands below.
+
+$cert = Get-ChildItem Cert:\CurrentUser\My -CodeSigningCert | Where-Object Subject -eq "CN=Hydrogen Studios, LLC" | Select-Object -First 1
+
+
+STEP 2 - CONFIRM THE CORRECT CERTIFICATE WAS FOUND
+---------------------------------------------------
+
+# Display the certificate subject, unique thumbprint, whether its private
+# key is available, and its expiration date.
+# HasPrivateKey should say True.
+
+$cert | Format-List Subject, Thumbprint, HasPrivateKey, NotAfter
+
+
+STEP 3 - SIGN ATLAS.EXE
+------------------------
+
+# Run Microsoft's SignTool using the certificate loaded above.
+# /sha1 selects the certificate by its unique thumbprint.
+# /fd SHA256 tells SignTool to use SHA-256 as the file digest algorithm.
+# ".\atlas.exe" means atlas.exe in the current PowerShell directory.
+
+& "C:\Program Files (x86)\Windows Kits\10\bin\10.0.28000.0\x64\signtool.exe" sign /sha1 $cert.Thumbprint /fd SHA256 ".\atlas.exe"
+
+# Expected result:
+# Successfully signed: .\atlas.exe
+
+
+STEP 4 - VERIFY THE SIGNATURE WITH SIGNTOOL
+--------------------------------------------
+
+# Verify the Authenticode signature that was just added.
+# /pa uses the standard Authenticode verification policy.
+# /v enables verbose output so you can inspect the certificate/signature.
+
+& "C:\Program Files (x86)\Windows Kits\10\bin\10.0.28000.0\x64\signtool.exe" verify /pa /v ".\atlas.exe"
+
+# Look near the end of the output for:
+# Successfully verified
+
+
+STEP 5 - VERIFY AGAIN WITH POWERSHELL
+--------------------------------------
+
+# Ask PowerShell to independently inspect the Authenticode signature.
+# Status should normally report Valid on a machine that trusts your
+# self-signed development certificate.
+
+Get-AuthenticodeSignature ".\atlas.exe" | Format-List Status, StatusMessage
+
+# Expected result:
+# Status        : Valid
+# StatusMessage : Signature verified.
+
+
+IMPORTANT NOTES
+---------------
+# Run these commands from the directory containing atlas.exe.
+# Because the commands use ".\atlas.exe", you do not need to edit the
+# path when signing a different Atlas version.
+
+# Sign atlas.exe only AFTER the executable has finished building.
+# Modifying atlas.exe after signing it invalidates the signature.
+
+# This is a SELF-SIGNED DEVELOPMENT certificate. Other computers will
+# not automatically trust it unless the public certificate has been
+# explicitly installed as trusted on those computers.
+
+# Never distribute or commit the private-key PFX file to Git/GitHub.

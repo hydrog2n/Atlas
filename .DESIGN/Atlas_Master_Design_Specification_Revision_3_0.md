@@ -3,7 +3,7 @@ title: Atlas Master Design Specification
 subtitle: Product User Experience and Technical Architecture
 revision: "3.0"
 status: Canonical foundation specification
-current_release: "v0.1.0"
+current_release: "v0.5.0"
 roadmap_baseline: "Atlas Implementation Roadmap 1.0"
 date: 2026-09-20
 audience:
@@ -27,7 +27,7 @@ This document is the source of truth for product meaning and technical invariant
 | Document field | Value |
 |---|---|
 | Status | Canonical foundation specification |
-| Current implementation baseline | `v0.1.0` Domain Kernel and Engineering Contract |
+| Current implementation baseline | `v0.5.0` RoadSpline Stationing and Derived Geometry |
 | Audience | Product design, engineering, quality assurance, technical art, and AI-assisted development |
 | Authority | Normative requirements marked MUST and MUST NOT; other text explains intent and expected behavior |
 | Primary orientation | Two-dimensional authoring with optional 2.5D elevation data and secondary derived previews |
@@ -35,7 +35,7 @@ This document is the source of truth for product meaning and technical invariant
 | Companion execution plan | Atlas Implementation Roadmap 1.0 |
 | Maintained representations | This Markdown source and its generated DOCX edition carry the same normative content |
 
-> **Current status:** Atlas is currently at `v0.4.0`, delivering the first interactive canvas, generic geometry, layers and levels, references, selection, inspection, and keyboard workflows on the deterministic foundation delivered in v0.3.0 and v0.3.1. Road authoring and production export remain later release capabilities and MUST NOT be represented as already shipped.
+> **Current status:** Atlas is currently at `v0.5.0`, delivering the Qt desktop road-authoring workflow, RoadSpline stationing, RoadSegment operations, derived envelopes, diagnostics, and schema-aware package migration on the v0.4.0 canvas and v0.3.x transaction foundation. Lane-native cross-section editing, connectivity, and production export remain later release capabilities and MUST NOT be represented as already shipped.
 
 # Document Control
 
@@ -145,11 +145,11 @@ The application is a purpose-built environment for designing fictional and simul
 
 ## 1 4 Current Development Baseline
 
-As of Revision 3.0, Atlas is at `v0.1.0`, Domain Kernel and Engineering Contract. The current release establishes module boundaries, stable typed records, canonical identifiers and units, ownership rules, deterministic normalization, architecture decisions, traceability, and foundation conformance tests.
+*Figure 1 Canonical ownership and independent classification relationships*
 
-The current release does not claim project-package persistence, undo and redo, an interactive canvas, road or lane authoring, junction editing, elevation, submaps, prefabs, production exporters, or public plugin APIs. Those capabilities become release-blocking only at the first-enforcement versions listed in Appendix E. Architecture that those features will depend on remains binding now.
+The current release includes project-package persistence, undo/redo, an interactive canvas, and RoadSpline authoring. It does not claim lane-native cross-section authoring, junction editing, elevation, submaps, prefabs, production exporters, or public plugin APIs. Those capabilities become release-blocking only at the first-enforcement versions listed in Appendix E. Architecture that those features will depend on remains binding now.
 
-The next planned milestone is `v0.2.0`, Project Package Persistence and Recovery. It makes authoritative source data durable before complex editing begins.
+The next planned milestone is `v0.6.0`, Lane-Native Cross Sections and Stable Lineage. It extends the persisted road placeholder into authored lane elements without changing the v0.5.0 road-source contract.
 
 # 2 Architectural Principles
 
@@ -1150,13 +1150,13 @@ Atlas tracks compatibility across separate dimensions:
 
 ## 36 3 Adopted Release Train
 
-| Version | Milestone | Capability that becomes shippable | Status in Revision 3.0 |
+| Version | Milestone | Capability that becomes shippable | Current release status |
 |---|---|---|---|
-| `v0.1.0` | Domain Kernel and Engineering Contract | Stable typed records, IDs, units, ownership validation, deterministic normalization, module boundaries, and conformance foundations. | **Current** |
-| `v0.2.0` | Project Package Persistence and Recovery | Canonical packages, deterministic serialization, atomic save, autosave, recovery, migrations, and unknown-data preservation. | Planned |
+| `v0.1.0` | Domain Kernel and Engineering Contract | Stable typed records, IDs, units, ownership validation, deterministic normalization, module boundaries, and conformance foundations. | Completed |
+| `v0.2.0` | Project Package Persistence and Recovery | Canonical packages, deterministic serialization, atomic save, autosave, recovery, migrations, and unknown-data preservation. | Completed |
 | `v0.3.0` | Command Transactions Dependencies and Validation | Previewable commands, commit and cancel, undo and redo, dependency invalidation, incremental diagnostics, and stale-result protection. | Completed |
 | `v0.4.0` | Canvas Drafting and Generic Object Editing | Infinite real-scale canvas, generic geometry, layers and levels, references, selection, inspection, and keyboard workflows. | Completed |
-| `v0.5.0` | RoadSpline Stationing and Derived Geometry | Road splines, station anchors, segments, deterministic edits, derived envelopes, and geometry diagnostics. | Planned |
+| `v0.5.0` | RoadSpline Stationing and Derived Geometry | Road splines, station anchors, segments, deterministic edits, derived envelopes, geometry diagnostics, and accessible Qt desktop road authoring. | **Current** |
 | `v0.6.0` | Lane Native Cross Sections and Stable Lineage | Physically scaled lanes and road elements, lane ports, cross-section editing, lineage, and deterministic reverse and reorder behavior. | Planned |
 | `v0.7.0` | Transport Network and Basic Junctions | Explicit connections, T-junctions, lane mappings, movements, graph inspection, and topology validation. | Planned |
 | `v0.8.0` | World Semantics Styles and Semantic Zoom | Generic world objects, schemas, metadata, search, styles, labels, and scale-dependent representations. | Planned |

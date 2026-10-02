@@ -4,15 +4,15 @@
 
 Atlas is a standalone, game-agnostic editor for designing fictional and simulated worlds in real-world units. It combines direct vector drawing, parametric road construction, lane-level transport networks, hierarchical maps, and extensible semantic data in one 2D-first authoring environment.
 
-> **Current version: `v0.4.0`** — canvas drafting and generic object editing
+> **Current version: `v0.5.0`** — RoadSpline stationing, derived envelopes, and desktop road authoring
 
-Atlas remains in the v0.1.x foundation phase, but the project now includes the first build-and-test stabilization pass for the Windows toolchain. The current release keeps the domain kernel in place while correcting the CI build environment so the foundation remains reproducible and verifiable.
+Atlas v0.5.0 adds an accessible Qt road-authoring workflow on the real-scale canvas, backed by stable station anchors, transactional segment editing, reproducible envelopes, and schema-aware package persistence.
 
 ## Why Atlas?
 
 General-purpose vector tools can draw maps, but they do not understand lanes, junctions, elevation contexts, navigable topology, or game-world semantics. GIS tools understand geographic data, but they are not designed primarily for authoring fictional worlds. Atlas is intended to bridge that gap.
 
-With Atlas, a road is more than a line. It is a measurable corridor with stable segments, lane identities, transitions, markings, connections, and metadata. A map is more than a flat image. It can contain multiple spatial levels, nested submaps, portals, semantic objects, and presentation rules while remaining portable between game engines.
+Atlas is designed to model roads as measurable corridors rather than decorative lines. In v0.5.0, RoadSplines have stable station anchors, RoadSegments, transactional edits, and reproducible derived envelopes; lane identities, transitions, markings, and network connections are planned for later releases. Maps can grow to include multiple spatial levels, nested submaps, portals, semantic objects, and presentation rules while remaining portable between game engines.
 
 ## Project Goals
 
@@ -27,13 +27,12 @@ With Atlas, a road is more than a line. It is a measurable corridor with stable 
 
 ## Planned Capabilities
 
-### Parametric roads and transport networks
+### Road authoring and transport networks
 
-- Bezier, polyline, and fixed-radius road splines
-- Real-world lane widths and configurable cross-sections
-- Stable lane identity and lineage through splits, merges, additions, and removals
-- Lane-level connections, junctions, turn movements, and routing semantics
-- Detail that increases with zoom, from simplified corridors to lane-level geometry
+- **Shipped in v0.5.0:** polyline, cubic Bezier, and fixed-radius RoadSplines; station and segment editing; split, merge, reverse, measure, undo/redo; a uniform-width derived envelope and diagnostics.
+- **Planned for v0.6.0:** physically authored lanes, cross-section editing, lane ports, and lane identity/lineage.
+- **Planned for v0.7.0:** explicit road connections, junctions, turn movements, and routing semantics.
+- Detail that increases with zoom, from simplified corridors to lane-level geometry remains planned.
 
 ### Hierarchical and vertical maps
 
@@ -86,8 +85,8 @@ The roadmap is capability-based. Exact contents may evolve as implementation and
 | `v0.2.1` | Persistence contract hardening | Nested unknown-data preservation, authoritative-file inventory, input limits, compatibility fixtures, and expanded recovery tests | Completed |
 | `v0.3.0` | Command transactions, dependencies, and validation | Previewable commands, commit/cancel, undo/redo, dependency invalidation, diagnostics, repair commands, and stale-result protection | Completed |
 | `v0.3.1` | v0.3 validation audit and test hardening | Expanded invalidation, reference, precondition, rebuild, cache, repair, and deterministic undo evidence | Completed |
-| `v0.4.0` | Canvas drafting and generic object editing | Infinite real-scale canvas, generic geometry, layers and levels, references, selection, inspection, and keyboard workflows | **Current** |
-| `v0.5.0` | RoadSpline stationing and derived geometry | Road splines, station anchors, segments, deterministic edits, derived envelopes, and geometry diagnostics | Planned |
+| `v0.4.0` | Canvas drafting and generic object editing | Infinite real-scale canvas, generic geometry, layers and levels, references, selection, inspection, and keyboard workflows | Completed |
+| `v0.5.0` | RoadSpline stationing and derived geometry | Road splines, station anchors, segments, deterministic edits, derived envelopes, geometry diagnostics, and accessible desktop road authoring | **Current** |
 | `v0.6.0` | Lane-native cross-sections and stable lineage | Physically scaled lanes and road elements, lane ports, cross-section editing, lineage, and deterministic reverse/reorder behavior | Planned |
 | `v0.7.0` | Transport network and basic junctions | Explicit connections, T-junctions, lane mappings, movements, graph inspection, and topology validation | Planned |
 | `v0.8.0` | World semantics, styles, and semantic zoom | Buildings, zones, POIs, parcels, schemas, metadata, layers, search, styles, labels, and scale-dependent representations | Planned |
@@ -105,23 +104,24 @@ The roadmap is capability-based. Exact contents may evolve as implementation and
 
 Potential future work includes advanced GIS and OpenStreetMap-derived imports, traffic and route simulation, derived 3D previews, collaborative editing, scripting and automation, procedural city generation, constraint-assisted interchange design, and live game-engine synchronization.
 
-## Current Development Status — `v0.4.0`
+## Current Development Status — `v0.5.0`
 
-Atlas is still in the foundational release train, and the current release provides the first interactive canvas and generic editing workspace on the deterministic command and persistence foundation.
+Atlas now provides road-authoring workflows in the Qt desktop application, including create/edit, station measurement, segment operations, reverse, derived-envelope diagnostics, package open/save, and undo/redo.
 
 **Current focus**
 
-- Provide real-scale camera navigation, generic geometry records and commands, layers and levels, references, selection, inspection, snapping, and keyboard workflows.
-- Preserve immutable revisions, preview/commit/cancel, undo/redo, dependency invalidation, diagnostics, repair commands, and stale-result protection.
+- Preserve the v0.4.0 real-scale canvas, generic geometry, layers and levels, references, selection, inspection, snapping, and keyboard workflows.
+- Route road edits through immutable revisions, preview/commit/cancel, undo/redo, dependency invalidation, diagnostics, and deterministic derived rebuilds.
+- Preserve schema-1 packages; require explicit schema-2 migration before saving RoadSpline data into a schema-1 package.
 - Maintain the implementation baseline recorded in [ADR-0001](.DESIGN/adr/ADR-0001-technology-baseline.md): C++23, Qt 6 Widgets, CMake, vcpkg, GoogleTest, and deterministic JSON source records.
 - Keep architecture decisions, requirement-to-test traceability, and the decision backlog aligned with the project’s release scope.
 
 **Not yet part of the current release**
 
-- Road, lane, junction, elevation, submap, prefab, and procedural authoring
-- Stable import/export or plugin APIs, road-specific workflows, and production performance guarantees
+- Lane-native cross-section editing and lineage, road connectivity and junctions, elevation, submaps, prefabs, and procedural authoring
+- Production exporters, public plugin APIs, and production-scale performance guarantees
 
-The next milestone is **`v0.5.0` — RoadSpline stationing and derived geometry**.
+The next milestone is **`v0.6.0` — Lane-native cross-sections and stable lineage**.
 
 ## Project Boundaries
 

@@ -1,0 +1,33 @@
+{
+  "schemaGeneration": 1,
+  "geometryEngineVersion": "atlas-curve-kernel-1",
+  "envelopeAlgorithmVersion": "atlas-road-envelope-3",
+  "toleranceVersion": "atlas-road-envelope-tolerance-3",
+  "cases": [
+    {
+      "name": "straight-centered-eight-meter-width",
+      "kind": "line",
+      "start": [0.0, 0.0],
+      "end": [4.0, 0.0],
+      "totalWidthMeters": 8.0,
+      "maximumStationStep": 4.0,
+      "maximumChordErrorMeters": 0.01,
+      "joinStyle": "round",
+      "polygon": [[0.0, 4.0], [4.0, 4.0], [4.0, -4.0], [0.0, -4.0]]
+    },
+    {
+      "name": "curved-minor-arc-five-millimeter-deviation",
+      "kind": "circular-arc",
+      "start": [0.0, 0.0],
+      "end": [10.0, 0.0],
+      "radius": 10.0,
+      "side": "left",
+      "totalWidthMeters": 4.0,
+      "maximumStationStep": 2.0,
+      "maximumChordErrorMeters": 0.005,
+      "joinStyle": "round",
+      "expectedVertexCount": 66,
+      "expectedHash": "fnv1a64:48838ab6a39bc0be"
+    }
+  ]
+}

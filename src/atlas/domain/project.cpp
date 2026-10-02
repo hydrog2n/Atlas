@@ -3,12 +3,45 @@
 #include <nlohmann/json.hpp>
 
 #include <algorithm>
+#include <initializer_list>
+#include <set>
 #include <stdexcept>
 #include <utility>
 
 namespace atlas::domain {
 
 namespace {
+
+constexpr const char* geometryPolicyExtensionKey = "atlas.geometryPolicy";
+constexpr double defaultMiterLimitRatio = 4.0;
+
+nlohmann::json unknownRecordFields(
+    const nlohmann::json& record,
+    std::initializer_list<const char*> knownFields) {
+    nlohmann::json unknown = nlohmann::json::object();
+    for (const auto& [key, value] : record.items()) {
+        const auto known = std::any_of(knownFields.begin(), knownFields.end(), [&](const char* field) {
+            return key == field;
+        });
+        if (!known) unknown[key] = value;
+    }
+    return unknown;
+}
+
+nlohmann::json defaultGeometryPolicy() {
+    return {{"miterLimitRatio", defaultMiterLimitRatio}};
+}
+
+void validateGeometryPolicy(const nlohmann::json& policy) {
+    if (!policy.is_object() || !policy.contains("miterLimitRatio") ||
+        !policy["miterLimitRatio"].is_number()) {
+        throw std::invalid_argument("Project geometry policy requires miterLimitRatio.");
+    }
+    const auto ratio = policy["miterLimitRatio"].get<double>();
+    if (!std::isfinite(ratio) || ratio < 1.0) {
+        throw std::invalid_argument("Project miterLimitRatio must be finite and at least 1.0.");
+    }
+}
 
 // Canonical root-map shape used for deterministic serialization.
 nlohmann::ordered_json normalizeRootMap(const Map& rootMap) {
@@ -47,6 +80,96 @@ nlohmann::ordered_json normalizeRootMap(const Map& rootMap) {
 }
 
 } // namespace
+
+nlohmann::json RoadSpline::normalizedJson() const {
+    nlohmann::json normalized{
+        {"id", id}, {"mapId", mapId}, {"primitives", primitives},
+        {"direction", direction}, {"segmentIds", segmentIds},
+        {"styleRef", styleRef}, {"metadata", metadata}, {"networkRefs", networkRefs},
+        {"stationAnchors", nlohmann::json::array()}};
+    for (const auto& anchor : stationAnchors) {
+        normalized["stationAnchors"].push_back({
+            {"id", anchor.id}, {"resolvedStation", anchor.resolvedStation},
+            {"affinity", static_cast<int>(anchor.affinity)},
+            {"remapSignature", {
+                {"normalizedStation", anchor.remapSignature.normalizedStation},
+                {"primitiveId", anchor.remapSignature.primitiveId},
+                {"primitiveT", anchor.remapSignature.primitiveT},
+                {"worldPosition", {{"x", anchor.remapSignature.worldPosition.x},
+                    {"y", anchor.remapSignature.worldPosition.y}}}}}});
+    }
+    for (const auto& [key, value] : unknownFields.items()) normalized[key] = value;
+    return normalized;
+}
+
+RoadSpline RoadSpline::fromJson(const nlohmann::json& record) {
+    if (!record.is_object() || !record.contains("id") || !record["id"].is_string() ||
+        record["id"].get<std::string>().empty() || !record.contains("mapId") ||
+        !record["mapId"].is_string() || record["mapId"].get<std::string>().empty()) {
+        throw std::invalid_argument("RoadSpline requires non-empty id and mapId.");
+    }
+    RoadSpline road{
+        record["id"], record["mapId"], record.value("primitives", nlohmann::json::array()),
+        record.value("direction", "start-to-end"), record.value("segmentIds", std::vector<std::string>{}),
+        record.value("styleRef", nlohmann::json(nullptr)),
+        record.value("metadata", nlohmann::json::object()),
+        record.value("networkRefs", nlohmann::json::array()), {}};
+    road.unknownFields = unknownRecordFields(record, {
+        "id", "mapId", "primitives", "direction", "segmentIds", "styleRef", "metadata",
+        "networkRefs", "stationAnchors"});
+    for (const auto& anchorJson : record.value("stationAnchors", nlohmann::json::array())) {
+        StationAnchor anchor;
+        anchor.id = anchorJson.value("id", "");
+        anchor.resolvedStation = anchorJson.value("resolvedStation", 0.0);
+        anchor.affinity = static_cast<AnchorAffinity>(anchorJson.value("affinity", 2));
+        const auto signature = anchorJson.value("remapSignature", nlohmann::json::object());
+        anchor.remapSignature.normalizedStation = signature.value("normalizedStation", 0.0);
+        anchor.remapSignature.primitiveId = signature.value("primitiveId", "");
+        anchor.remapSignature.primitiveT = signature.value("primitiveT", 0.0);
+        const auto position = signature.value("worldPosition", nlohmann::json::object());
+        anchor.remapSignature.worldPosition = {position.value("x", 0.0), position.value("y", 0.0)};
+        road.stationAnchors.push_back(std::move(anchor));
+    }
+    return road;
+}
+
+nlohmann::json RoadSegment::normalizedJson() const {
+    nlohmann::json normalized = {
+        {"id", id}, {"mapId", mapId}, {"roadSplineId", roadSplineId},
+        {"startAnchorId", startAnchorId}, {"endAnchorId", endAnchorId},
+        {"crossSectionState", crossSectionState}, {"styleOverrides", styleOverrides},
+        {"schemaProperties", schemaProperties}, {"spatialReferences", spatialReferences},
+        {"boundaryAttachments", boundaryAttachments}, {"metadata", metadata}, {"lineage", lineage},
+        {"stationAttachments", stationAttachments}};
+    for (const auto& [key, value] : unknownFields.items()) normalized[key] = value;
+    return normalized;
+}
+
+RoadSegment RoadSegment::fromJson(const nlohmann::json& record) {
+    if (!record.is_object() || !record.contains("id") || !record["id"].is_string() ||
+        record["id"].get<std::string>().empty() || !record.contains("mapId") ||
+        !record["mapId"].is_string() || record["mapId"].get<std::string>().empty() ||
+        !record.contains("roadSplineId") || !record["roadSplineId"].is_string() ||
+        record["roadSplineId"].get<std::string>().empty()) {
+        throw std::invalid_argument("RoadSegment requires id, mapId, and roadSplineId.");
+    }
+    RoadSegment segment{
+        record["id"], record["mapId"], record["roadSplineId"],
+        record.value("startAnchorId", ""), record.value("endAnchorId", ""),
+        record.value("crossSectionState", nlohmann::json::object()),
+        record.value("lineage", nlohmann::json::object()),
+        record.value("styleOverrides", nlohmann::json::object()),
+        record.value("schemaProperties", nlohmann::json::object()),
+        record.value("spatialReferences", nlohmann::json::array()),
+        record.value("boundaryAttachments", nlohmann::json::array()),
+        record.value("metadata", nlohmann::json::object()),
+        record.value("stationAttachments", nlohmann::json::array())};
+    segment.unknownFields = unknownRecordFields(record, {
+        "id", "mapId", "roadSplineId", "startAnchorId", "endAnchorId", "crossSectionState",
+        "lineage", "styleOverrides", "schemaProperties", "spatialReferences", "boundaryAttachments",
+        "metadata", "stationAttachments"});
+    return segment;
+}
 
 MapObject::MapObject(nlohmann::json record)
     : record_(std::move(record)),
@@ -191,7 +314,8 @@ Project Project::empty(std::string projectId, std::string mapId) {
     Map rootMap{std::move(mapId)};
     rootMap.displayLayers.push_back({"default-layer", "Default", true, false, 1.0});
     rootMap.spatialLevels.push_back({"default-level", "Ground"});
-    return Project(std::move(projectId), std::move(rootMap));
+    return Project(std::move(projectId), std::move(rootMap), {}, {},
+        {{geometryPolicyExtensionKey, defaultGeometryPolicy()}});
 }
 
 // Parse project JSON and validate the minimum required fields.
@@ -242,15 +366,47 @@ Project Project::fromJson(const std::string& jsonText) {
     if (rootMap.spatialLevels.empty()) rootMap.spatialLevels.push_back({"default-level", "Ground"});
     rootMap.validateObjectReferences();
 
+    std::vector<RoadSpline> roadSplines;
+    for (const auto& roadJson : parsed.value("roadSplines", nlohmann::json::array())) {
+        const auto road = RoadSpline::fromJson(roadJson);
+        if (std::any_of(roadSplines.begin(), roadSplines.end(), [&](const RoadSpline& existing) {
+            return existing.id == road.id;
+        })) {
+            throw std::invalid_argument("Project contains duplicate RoadSpline IDs.");
+        }
+        if (road.mapId != rootMap.id) throw std::invalid_argument("RoadSpline has invalid Map ownership.");
+        roadSplines.push_back(road);
+    }
+    std::vector<RoadSegment> roadSegments;
+    for (const auto& segmentJson : parsed.value("roadSegments", nlohmann::json::array())) {
+        const auto segment = RoadSegment::fromJson(segmentJson);
+        if (std::any_of(roadSegments.begin(), roadSegments.end(), [&](const RoadSegment& existing) {
+            return existing.id == segment.id;
+        })) {
+            throw std::invalid_argument("Project contains duplicate RoadSegment IDs.");
+        }
+        if (segment.mapId != rootMap.id || std::none_of(roadSplines.begin(), roadSplines.end(), [&](const RoadSpline& road) {
+            return road.id == segment.roadSplineId;
+        })) {
+            throw std::invalid_argument("RoadSegment has invalid RoadSpline ownership.");
+        }
+        roadSegments.push_back(segment);
+    }
+
     nlohmann::json extensions = parsed.value("extensions", nlohmann::json::object());
     if (!extensions.is_object()) {
         throw std::invalid_argument("Project extensions must be an object.");
     }
+    if (!extensions.contains(geometryPolicyExtensionKey)) {
+        extensions[geometryPolicyExtensionKey] = defaultGeometryPolicy();
+    }
+    validateGeometryPolicy(extensions[geometryPolicyExtensionKey]);
 
     // Keep fields outside the current schema instead of silently dropping them.
     nlohmann::json unknownFields = nlohmann::json::object();
     for (const auto& [key, value] : parsed.items()) {
-        if (key != "id" && key != "schemaVersion" && key != "units" && key != "maps" && key != "extensions") {
+        if (key != "id" && key != "schemaVersion" && key != "units" && key != "maps" &&
+            key != "roadSplines" && key != "roadSegments" && key != "extensions") {
             unknownFields[key] = value;
         }
     }
@@ -258,6 +414,8 @@ Project Project::fromJson(const std::string& jsonText) {
     return Project(
         parsed["id"].get<std::string>(),
         std::move(rootMap),
+        std::move(roadSplines),
+        std::move(roadSegments),
         std::move(extensions),
         std::move(unknownFields));
 }
@@ -266,10 +424,14 @@ Project Project::fromJson(const std::string& jsonText) {
 Project::Project(
     std::string projectId,
     Map rootMap,
+    std::vector<RoadSpline> roadSplines,
+    std::vector<RoadSegment> roadSegments,
     nlohmann::json extensions,
     nlohmann::json unknownFields)
     : id_(std::move(projectId)),
       rootMap_(std::move(rootMap)),
+            roadSplines_(std::move(roadSplines)),
+            roadSegments_(std::move(roadSegments)),
       extensions_(std::move(extensions)),
       unknownFields_(std::move(unknownFields)) {}
 
@@ -288,25 +450,201 @@ const nlohmann::json& Project::extensions() const noexcept {
     return extensions_;
 }
 
+const nlohmann::json& Project::geometryPolicy() const {
+    return extensions_.at(geometryPolicyExtensionKey);
+}
+
 const nlohmann::json& Project::unknownFields() const noexcept {
     // Unknown fields remain available for lossless round trips.
     return unknownFields_;
 }
 
+const std::vector<RoadSpline>& Project::roadSplines() const noexcept {
+    return roadSplines_;
+}
+
+const std::vector<RoadSegment>& Project::roadSegments() const noexcept {
+    return roadSegments_;
+}
+
 Project Project::withRootMap(Map rootMap) const {
     rootMap.validateObjectReferences();
-    return Project(id_, std::move(rootMap), extensions_, unknownFields_);
+    return Project(id_, std::move(rootMap), roadSplines_, roadSegments_, extensions_, unknownFields_);
+}
+
+Project Project::withGeometryPolicy(nlohmann::json policy) const {
+    validateGeometryPolicy(policy);
+    auto extensions = extensions_;
+    extensions[geometryPolicyExtensionKey] = std::move(policy);
+    return Project(id_, rootMap_, roadSplines_, roadSegments_, std::move(extensions), unknownFields_);
+}
+
+Project Project::withRoadSpline(RoadSpline roadSpline) const {
+    if (roadSpline.id.empty() || roadSpline.mapId != rootMap_.id) {
+        throw std::invalid_argument("RoadSpline requires a non-empty ID owned by the root Map.");
+    }
+    auto roadSplines = roadSplines_;
+    if (std::any_of(roadSplines.begin(), roadSplines.end(), [&](const RoadSpline& existing) {
+        return existing.id == roadSpline.id;
+    })) {
+        throw std::invalid_argument("RoadSpline ID must be unique.");
+    }
+    roadSplines.push_back(std::move(roadSpline));
+    return Project(id_, rootMap_, std::move(roadSplines), roadSegments_, extensions_, unknownFields_);
+}
+
+Project Project::withRoadSplineAndSegments(RoadSpline roadSpline, std::vector<RoadSegment> segments) const {
+    if (roadSpline.id.empty() || roadSpline.mapId != rootMap_.id) {
+        throw std::invalid_argument("RoadSpline requires a non-empty ID owned by the root Map.");
+    }
+    if (std::any_of(roadSplines_.begin(), roadSplines_.end(), [&](const RoadSpline& existing) {
+        return existing.id == roadSpline.id;
+    })) {
+        throw std::invalid_argument("RoadSpline ID must be unique.");
+    }
+    roadSpline.segmentIds.clear();
+    auto allSegments = roadSegments_;
+    for (const auto& segment : segments) {
+        if (segment.id.empty() || segment.mapId != rootMap_.id || segment.roadSplineId != roadSpline.id ||
+            std::any_of(allSegments.begin(), allSegments.end(), [&](const RoadSegment& existing) {
+                return existing.id == segment.id;
+            })) {
+            throw std::invalid_argument("Initial RoadSegment has invalid ownership or duplicate ID.");
+        }
+        roadSpline.segmentIds.push_back(segment.id);
+        allSegments.push_back(segment);
+    }
+    if (segments.size() != 1) {
+        throw std::invalid_argument("New RoadSpline requires exactly one initial full-domain RoadSegment.");
+    }
+    auto roads = roadSplines_;
+    roads.push_back(std::move(roadSpline));
+    return Project(id_, rootMap_, std::move(roads), std::move(allSegments), extensions_, unknownFields_);
+}
+
+Project Project::withReplacedRoadSpline(RoadSpline roadSpline) const {
+    if (roadSpline.id.empty() || roadSpline.mapId != rootMap_.id) {
+        throw std::invalid_argument("RoadSpline requires a non-empty ID owned by the root Map.");
+    }
+    auto roadSplines = roadSplines_;
+    const auto found = std::find_if(roadSplines.begin(), roadSplines.end(), [&](const RoadSpline& existing) {
+        return existing.id == roadSpline.id;
+    });
+    if (found == roadSplines.end()) throw std::invalid_argument("RoadSpline does not exist.");
+    *found = std::move(roadSpline);
+    return Project(id_, rootMap_, std::move(roadSplines), roadSegments_, extensions_, unknownFields_);
+}
+
+Project Project::withReplacedRoadTopology(RoadSpline roadSpline, std::vector<RoadSegment> segments) const {
+    if (roadSpline.id.empty() || roadSpline.mapId != rootMap_.id) {
+        throw std::invalid_argument("RoadSpline requires a non-empty ID owned by the root Map.");
+    }
+    auto roads = roadSplines_;
+    const auto road = std::find_if(roads.begin(), roads.end(), [&](const RoadSpline& existing) {
+        return existing.id == roadSpline.id;
+    });
+    if (road == roads.end()) throw std::invalid_argument("RoadSpline does not exist.");
+
+    auto allSegments = roadSegments_;
+    allSegments.erase(std::remove_if(allSegments.begin(), allSegments.end(), [&](const RoadSegment& segment) {
+        return segment.roadSplineId == roadSpline.id;
+    }), allSegments.end());
+    roadSpline.segmentIds.clear();
+    for (const auto& segment : segments) {
+        if (segment.id.empty() || segment.mapId != rootMap_.id || segment.roadSplineId != roadSpline.id ||
+            std::any_of(allSegments.begin(), allSegments.end(), [&](const RoadSegment& existing) {
+                return existing.id == segment.id;
+            })) {
+            throw std::invalid_argument("Replacement RoadSegment has invalid ownership or duplicate ID.");
+        }
+        roadSpline.segmentIds.push_back(segment.id);
+        allSegments.push_back(segment);
+    }
+    if (segments.empty()) throw std::invalid_argument("RoadSpline topology requires at least one RoadSegment.");
+    *road = std::move(roadSpline);
+    return Project(id_, rootMap_, std::move(roads), std::move(allSegments), extensions_, unknownFields_);
+}
+
+Project Project::withoutRoadSpline(const std::string& roadSplineId) const {
+    if (std::any_of(roadSegments_.begin(), roadSegments_.end(), [&](const RoadSegment& segment) {
+        return segment.roadSplineId == roadSplineId;
+    })) {
+        throw std::invalid_argument("RoadSpline has dependent RoadSegments.");
+    }
+    auto roadSplines = roadSplines_;
+    const auto originalSize = roadSplines.size();
+    roadSplines.erase(std::remove_if(roadSplines.begin(), roadSplines.end(), [&](const RoadSpline& road) {
+        return road.id == roadSplineId;
+    }), roadSplines.end());
+    if (roadSplines.size() == originalSize) throw std::invalid_argument("RoadSpline does not exist.");
+    return Project(id_, rootMap_, std::move(roadSplines), roadSegments_, extensions_, unknownFields_);
+}
+
+Project Project::withoutRoadSplineAndSegments(const std::string& roadSplineId) const {
+    auto roadSplines = roadSplines_;
+    const auto originalSize = roadSplines.size();
+    roadSplines.erase(std::remove_if(roadSplines.begin(), roadSplines.end(), [&](const RoadSpline& road) {
+        return road.id == roadSplineId;
+    }), roadSplines.end());
+    if (roadSplines.size() == originalSize) throw std::invalid_argument("RoadSpline does not exist.");
+    auto roadSegments = roadSegments_;
+    roadSegments.erase(std::remove_if(roadSegments.begin(), roadSegments.end(), [&](const RoadSegment& segment) {
+        return segment.roadSplineId == roadSplineId;
+    }), roadSegments.end());
+    return Project(id_, rootMap_, std::move(roadSplines), std::move(roadSegments), extensions_, unknownFields_);
+}
+
+Project Project::withRoadSegment(RoadSegment roadSegment) const {
+    if (roadSegment.id.empty() || roadSegment.mapId != rootMap_.id || roadSegment.roadSplineId.empty()) {
+        throw std::invalid_argument("RoadSegment requires an ID, owning Map, and RoadSpline reference.");
+    }
+    const auto parent = std::find_if(roadSplines_.begin(), roadSplines_.end(), [&](const RoadSpline& roadSpline) {
+        return roadSpline.id == roadSegment.roadSplineId;
+    });
+    if (parent == roadSplines_.end()) {
+        throw std::invalid_argument("RoadSegment references an unknown RoadSpline.");
+    }
+    if (std::any_of(roadSegments_.begin(), roadSegments_.end(), [&](const RoadSegment& existing) {
+        return existing.id == roadSegment.id;
+    })) {
+        throw std::invalid_argument("RoadSegment ID must be unique.");
+    }
+    auto roadSegments = roadSegments_;
+    roadSegments.push_back(std::move(roadSegment));
+    return Project(id_, rootMap_, roadSplines_, std::move(roadSegments), extensions_, unknownFields_);
 }
 
 // Serialize the project into a canonical JSON format.
-std::string Project::normalizedJson() const {
+std::string Project::normalizedJson(int schemaGeneration) const {
+    if (schemaGeneration < 1 || schemaGeneration > 2) {
+        throw std::invalid_argument("Unsupported project schema generation.");
+    }
+    if (schemaGeneration == 1 && (!roadSplines_.empty() || !roadSegments_.empty())) {
+        throw std::invalid_argument("Schema generation 1 cannot represent RoadSpline or RoadSegment records.");
+    }
     nlohmann::ordered_json normalized = {
         {"id", id_},
         {"type", "core.Project"},
-        {"schemaVersion", 1},
+        {"schemaVersion", schemaGeneration},
         {"units", "m"},
         {"maps", nlohmann::ordered_json::array({ normalizeRootMap(rootMap_) })}
     };
+
+    if (schemaGeneration >= 2) {
+        normalized["roadSplines"] = nlohmann::ordered_json::array();
+        normalized["roadSegments"] = nlohmann::ordered_json::array();
+        auto roadSplines = roadSplines_;
+        std::sort(roadSplines.begin(), roadSplines.end(), [](const RoadSpline& left, const RoadSpline& right) {
+            return left.id < right.id;
+        });
+        for (const auto& roadSpline : roadSplines) normalized["roadSplines"].push_back(roadSpline.normalizedJson());
+
+        auto roadSegments = roadSegments_;
+        std::sort(roadSegments.begin(), roadSegments.end(), [](const RoadSegment& left, const RoadSegment& right) {
+            return left.id < right.id;
+        });
+        for (const auto& roadSegment : roadSegments) normalized["roadSegments"].push_back(roadSegment.normalizedJson());
+    }
 
     if (!extensions_.empty()) {
         normalized["extensions"] = extensions_;

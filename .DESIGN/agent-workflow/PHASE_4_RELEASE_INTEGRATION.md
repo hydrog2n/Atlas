@@ -61,7 +61,61 @@ Create/update `[VERSION]` release notes with applicable sections:
 4.  Verify compatibility fixtures and release gates remain valid.
 5.  Confirm build/test instructions remain reproducible.
 6.  Confirm required release evidence is available.
-7.  Confirm no Atlas stop-ship condition remains.
+7.  Sign the final Windows desktop executable with the configured
+    self-signed development code-signing certificate and verify the
+    Authenticode signature.
+8.  Confirm no Atlas stop-ship condition remains.
+
+## Windows Executable Signing
+
+After the final Windows Qt build and `windeployqt` deployment have completed,
+sign `build/windows-qt-sdk/atlas.exe`. Signing MUST be the last operation that
+modifies the executable; if it is rebuilt or modified afterward, sign and
+verify it again.
+
+Use the existing certificate in `Cert:\CurrentUser\My` whose parsed simple
+name is `Hydrogen Studios, LLC`. Windows may quote the comma in the displayed
+distinguished name (for example, `CN="Hydrogen Studios, LLC"`), so do not
+compare the raw `Subject` string. Do not create/import a certificate
+automatically, request a password, export a PFX, or access/export the private
+key. Require exactly one matching, unexpired code-signing certificate with
+`HasPrivateKey = True`; report its thumbprint and expiration in the Phase 4
+evidence without exposing key material.
+
+From the repository root, the signing and verification commands are:
+
+```powershell
+$certificates = @(Get-ChildItem Cert:\CurrentUser\My -CodeSigningCert |
+    Where-Object {
+        $_.GetNameInfo([System.Security.Cryptography.X509Certificates.X509NameType]::SimpleName, $false) -eq 'Hydrogen Studios, LLC' -and
+        $_.HasPrivateKey -and $_.NotAfter -gt (Get-Date)
+    })
+if ($certificates.Count -ne 1) {
+    throw "Expected exactly one usable Atlas code-signing certificate; found $($certificates.Count)."
+}
+$cert = $certificates[0]
+$exe = Join-Path $PWD 'build/windows-qt-sdk/atlas.exe'
+$signtool = 'C:\Program Files (x86)\Windows Kits\10\bin\10.0.28000.0\x64\signtool.exe'
+if (-not (Test-Path $signtool)) {
+    throw "SignTool not found: $signtool"
+}
+& $signtool sign /sha1 $cert.Thumbprint /fd SHA256 $exe
+if ($LASTEXITCODE -ne 0) { throw 'SignTool failed to sign atlas.exe.' }
+& $signtool verify /pa /v $exe
+if ($LASTEXITCODE -ne 0) { throw 'SignTool Authenticode verification failed.' }
+$signature = Get-AuthenticodeSignature $exe
+$signature | Format-List Status, StatusMessage, SignerCertificate
+if ($signature.Status -ne 'Valid') {
+    throw "PowerShell signature verification failed: $($signature.StatusMessage)"
+}
+```
+
+The certificate is self-signed for development. A valid local signature does
+not imply that other computers trust Atlas; do not describe it as a trusted
+public publisher signature. Never commit or distribute a private-key PFX file.
+If the certificate, private key, SignTool, or successful verification is
+unavailable, Phase 4 MUST report `Release complete: no` and identify the
+signing blocker; it MUST NOT silently skip signing.
 
 ## Final Scope Lock
 
@@ -106,6 +160,7 @@ Release Integration:
 - Final scope-ledger reconciliation:
 - Application-version locations updated:
 - Independent compatibility versions changed:
+- Windows executable signing: certificate subject/thumbprint/expiry, signing result, SignTool verification, PowerShell status:
 - Changelog/release notes updated:
 - Documentation/status updated:
 - Compatibility/migration impact:
@@ -114,6 +169,7 @@ Release Integration:
 Final Verification:
 - Final commands/checks run:
 - Result:
+- Signed executable path and signature verification result:
 - Release gates confirmed:
 - Release evidence status:
 - Stop-ship defects:

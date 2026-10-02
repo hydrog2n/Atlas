@@ -1,0 +1,94 @@
+{
+  "id": "fixture-minimal-road",
+  "type": "core.Project",
+  "schemaVersion": 2,
+  "units": "m",
+  "maps": [
+    {
+      "id": "root-map",
+      "parentMapId": null,
+      "objects": [],
+      "networkObjects": []
+    }
+  ],
+  "extensions": {
+    "atlas.geometryPolicy": {
+      "miterLimitRatio": 4.0
+    }
+  },
+  "roadSplines": [
+    {
+      "id": "road-minimal",
+      "mapId": "root-map",
+      "future.example": {"sourceTag": "minimal-road"},
+      "direction": "start-to-end",
+      "primitives": [
+        {
+          "id": "centerline-1",
+          "kind": "line",
+          "startControlPointId": "point-start",
+          "endControlPointId": "point-end",
+          "start": {"x": 0.0, "y": 0.0},
+          "end": {"x": 20.0, "y": 0.0}
+        }
+      ],
+      "segmentIds": ["segment-minimal"],
+      "stationAnchors": [
+        {
+          "id": "anchor-start",
+          "resolvedStation": 0.0,
+          "affinity": 0,
+          "remapSignature": {
+            "normalizedStation": 0.0,
+            "primitiveId": "centerline-1",
+            "primitiveT": 0.0,
+            "worldPosition": {"x": 0.0, "y": 0.0}
+          }
+        },
+        {
+          "id": "anchor-end",
+          "resolvedStation": 20.0,
+          "affinity": 1,
+          "remapSignature": {
+            "normalizedStation": 1.0,
+            "primitiveId": "centerline-1",
+            "primitiveT": 1.0,
+            "worldPosition": {"x": 20.0, "y": 0.0}
+          }
+        }
+      ]
+    }
+  ],
+  "roadSegments": [
+    {
+      "id": "segment-minimal",
+      "mapId": "root-map",
+      "roadSplineId": "road-minimal",
+      "future.example": {"retained": true},
+      "startAnchorId": "anchor-start",
+      "endAnchorId": "anchor-end",
+      "crossSectionState": {
+        "kind": "uniform-placeholder",
+        "totalWidthMeters": 8.0,
+        "joinStyle": "round",
+        "elements": [
+          {
+            "id": "lane-left",
+            "typeId": "TravelLane",
+            "group": "left",
+            "orderKey": "1",
+            "widthProfile": {"constant": 4.0}
+          },
+          {
+            "id": "lane-right",
+            "typeId": "TravelLane",
+            "group": "right",
+            "orderKey": "1",
+            "widthProfile": {"constant": 4.0}
+          }
+        ]
+      },
+      "lineage": {"relation": "initial"}
+    }
+  ]
+}
