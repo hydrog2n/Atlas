@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.25)
 # This is the top-level build definition for the Atlas project.
 # It tells CMake which language we use, which components to build,
 # and how the project is organized into libraries, executables, and tests.
-project(Atlas VERSION 0.5.0 LANGUAGES CXX)
+project(Atlas VERSION 0.5.1 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -91,10 +91,22 @@ if(ATLAS_BUILD_UI)
     # It depends on the domain layer, but the domain layer does not depend on Qt.
     find_package(Qt6 CONFIG REQUIRED COMPONENTS Widgets OpenGLWidgets)
 
+    set(ATLAS_WINDOWS_RESOURCES)
+    if(WIN32)
+        enable_language(RC)
+        configure_file(
+            .DESIGN/Atlas_iconVector.ico
+            "${CMAKE_CURRENT_BINARY_DIR}/Atlas_iconVector.ico"
+            COPYONLY
+        )
+        list(APPEND ATLAS_WINDOWS_RESOURCES src/atlas/ui/atlas.rc)
+    endif()
+
     add_executable(atlas WIN32
         src/atlas/ui/main.cpp
         src/atlas/ui/main_window.cpp
         src/atlas/ui/canvas_widget.cpp
+        ${ATLAS_WINDOWS_RESOURCES}
     )
     target_link_libraries(atlas PRIVATE atlas_domain atlas_application atlas_persistence atlas_render Qt6::Widgets Qt6::OpenGLWidgets)
     target_compile_definitions(atlas PRIVATE QT_NO_KEYWORDS)

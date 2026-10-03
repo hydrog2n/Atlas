@@ -3,7 +3,7 @@
 ## Project context
 
 - Atlas is a standalone, game-agnostic editor for fictional and simulated worlds.
-- The current application release is v0.5.0, with RoadSpline authoring through the Qt desktop application. Later lane-native, connectivity, elevation, export, and plugin capabilities remain planned.
+- The current application release is v0.5.1, a Qt interaction usability patch over v0.5.0 RoadSpline authoring with no persisted feature-scope change. Later lane-native, connectivity, elevation, export, and plugin capabilities remain planned.
 - Read [README.md](README.md) for the product summary and [ROADMAP.md](ROADMAP.md) for release sequencing, work-packet requirements, quality gates, and stop conditions.
 - Read the [Atlas Master Design Specification Revision 3.0](.DESIGN/Atlas_Master_Design_Specification_Revision_3_0.md) as the canonical authority for product meaning and technical invariants. Do not invent missing requirements; ask for the relevant source or record an ADR proposal.
 - Read [ADR-0001](.DESIGN/adr/ADR-0001-technology-baseline.md) for the accepted implementation baseline: C++23, Qt 6 Widgets, CMake, vcpkg manifest mode, GoogleTest, and deterministic UTF-8 JSON source records.

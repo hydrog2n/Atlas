@@ -1664,7 +1664,7 @@ Final Verification:
 - Result: headless CTest 188/188 passed; Qt CTest 218/218 passed; official Qt build/deployment passed; architecture governance and diff checks passed; version and compatibility metadata are consistent.
 - Signed executable path and signature verification result: `build/windows-qt-sdk/atlas.exe`; SignTool verification succeeded, PowerShell status is `Valid`, signer subject and thumbprint match the certificate above.
 - Release gates confirmed: `R050-001`-`R050-006`; AC-001, AC-003, reverse equivalence, split/merge coverage and lineage, invalid-envelope bounded preview, save/load/migration compatibility, desktop keyboard/accessibility workflows, all retained compatibility fixtures, and earlier-release regressions.
-- Release evidence status: Complete. The signed desktop binary, final build outputs, CTest logs, retained fixtures, visual captures, accessibility/contrast tests, and this chronological development log are available in the repository/workspace.
+- Release evidence status: Complete. The signed desktop binary, final build outputs, CTest logs, retained fixtures, accessibility/contrast tests, and this chronological development log are available in the repository/workspace. Visual captures were reviewed from temporary output; the report records the findings, but the PNGs are not retained in the repository.
 - Stop-ship defects: none found.
 - Unvalidated or partial roadmap items: no v0.5.0 in-scope packet remains unvalidated. v0.6.0 lane-native editing and later capabilities remain planned and are not claimed as shipped. The DOCX remains at its previously generated content by explicit user direction; the canonical Markdown spec carries the active release state.
 

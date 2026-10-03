@@ -3,14 +3,14 @@ title: Atlas Implementation Roadmap
 roadmap_version: 1.0
 canonical_specification: Atlas Master Design Specification Revision 3.0
 canonical_specification_path: .DESIGN/Atlas_Master_Design_Specification_Revision_3_0.md
-canonical_specification_sha256: EB0BB93618DCA38A39B3EB5A33ED4CD36B082EE615937B73B035031AB8DA4D01
+canonical_specification_sha256: 36B4F93E0C7D7F6D275D605F49C655FB2B1B0A18CBF05E251ADAFC6B5D570FC9
 status: execution baseline
 date: 2026-09-20
 ---
 
 # Atlas Implementation Roadmap
 
-> **Current status:** `v0.5.0` — RoadSpline Stationing and Derived Geometry — **Completed** · Next: `v0.6.0` — Lane-Native Cross Sections and Stable Lineage
+> **Current status:** `v0.5.1` — Qt Interaction Usability Patch — **Completed** · Next: `v0.6.0` — Lane-Native Cross Sections and Stable Lineage
 
 ## Document purpose
 
@@ -53,6 +53,7 @@ The architecture is deliberately established before the specialized editor. Pers
 - **v1.0.0 is stabilization-only.** No new source object family or partially finished 1.1 feature may enter the production MVP.
 - **v1.1 through v1.7 are backward-compatible capability releases.** A user can decline a new feature and keep existing project meaning. Migrations must not invent new authored intent.
 - **Patch releases contain fixes, diagnostics, safe performance improvements, and documentation.** They do not add persisted feature scope or silently change derived geometry.
+- **v0.5.1 is a usability patch to the v0.5.0 Qt workflow.** It completes the approved interaction ledger without changing persisted feature scope or independent compatibility versions.
 - **v2.x is provisional.** It begins only when 1.x is stable and a major API or schema boundary is justified. Future capability labels are planning hypotheses, not permission to bypass ADRs.
 - The application version, project schema version, geometry-engine version, plugin API version, and exporter version are distinct. Never use the marketing version as a substitute for those compatibility dimensions.
 
@@ -611,6 +612,10 @@ v0.4.0 is complete only when every listed packet is merged, every gate is eviden
 ### Version completion statement
 
 v0.5.0 is complete only when every listed packet is merged, every gate is evidenced, all earlier release tests remain green, and the release can open and resave all retained compatibility fixtures without semantic drift.
+
+### v0.5.1 Patch completion statement
+
+v0.5.1 is complete when the approved Qt interaction usability ledger is implemented and validated, all v0.5.0 behavior and compatibility gates remain green, and no persisted feature scope or independent compatibility version changes.
 
 ## v0.6.0 Lane Native Cross Sections and Stable Lineage
 

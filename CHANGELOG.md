@@ -13,6 +13,45 @@ The format follows a release-focused pattern:
 
 ---
 
+## v0.5.1 - 2026-10-03
+
+### Added
+
+- Direct stable-ID control-point targeting and keyboard nudging, plus command-backed dragging for supported generic point objects.
+- Provisional mouse road placement with snapping, Escape cancellation, draft Undo/Redo, double-click completion, and an explicit Finish control.
+- Visible segment intervals, live/completed measurement overlays, hover identity, and non-color invalid-envelope/source diagnostics.
+- World/Local road transform gizmos with road rotation and World-only point translation.
+- Explicit per-anchor station resolution for ambiguous road edits.
+
+### Changed
+
+- Safe pointer gestures commit as independent undoable commands on release; blocking structural and remap resolution remains explicit.
+- Tool state, zoom, Fit Selection/Fit Road, and transform-space controls are discoverable in the desktop shell.
+
+### Fixed
+
+- Escape discards held provisional draft points and transient transforms without source mutation.
+- Generic-point hit targets remain screen-sized across zoom changes; distinct pointer gestures retain separate Undo entries.
+
+### Testing / Validation
+
+- Headless CTest: 189/189 passed. Windows Qt CTest: 238/238 passed.
+- Standalone application tests: 69/69 passed. Standalone Qt UI tests: 49/49 passed.
+- Architecture governance, compatibility/migration fixtures, golden/deterministic checks, and baseline/2x/high-DPI visual review passed.
+- Windows desktop executable signed with the local development Authenticode certificate; see Phase 4 evidence in the development log.
+
+### Compatibility / Migration
+
+- No project schema, geometry-engine, exporter, or plugin API version changed; existing schema-1/schema-2 package behavior is unchanged.
+
+### Known Limitations
+
+- Point objects have no Local or rotation transform semantics; scale transforms remain unsupported.
+- The executable signature uses a self-signed development certificate, is not timestamped, and is not publicly trusted by default.
+- Lane-native cross-sections, connectivity, elevation, and production export remain planned.
+
+---
+
 ## v0.5.0 - 2026-10-02
 
 ### Added

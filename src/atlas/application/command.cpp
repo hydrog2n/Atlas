@@ -645,16 +645,42 @@ double sourceLength(const domain::RoadSpline& road) {
 
 std::vector<domain::AnchorRemapResult> remapRoadEditAnchors(
     const domain::RoadSpline& original,
-    const domain::RoadSpline& edited) {
+    const domain::RoadSpline& edited,
+    const std::map<std::string, double>& stationResolutions) {
     const auto originalCurve = curveForRoad(original);
     const auto editedCurve = curveForRoad(edited);
     std::vector<domain::AnchorRemapResult> results;
+    std::vector<std::string> appliedResolutions;
     for (const auto& originalAnchor : original.stationAnchors) {
         const auto retained = std::any_of(edited.stationAnchors.begin(), edited.stationAnchors.end(),
             [&](const auto& candidate) { return candidate.id == originalAnchor.id; });
         if (!retained) continue;
-        results.push_back(domain::remapAnchor(originalAnchor, originalCurve.totalLength(),
-            editedCurve, {}, 0.0));
+        auto result = domain::remapAnchor(originalAnchor, originalCurve.totalLength(),
+            editedCurve, {}, 0.0);
+        const auto resolution = stationResolutions.find(originalAnchor.id);
+        if (!result.resolved && resolution != stationResolutions.end() &&
+            std::isfinite(resolution->second) && resolution->second >= 0.0 &&
+            resolution->second <= editedCurve.totalLength()) {
+            const auto parameter = editedCurve.primitiveParameterAtStation(resolution->second);
+            const auto evaluation = editedCurve.evaluateAtStation(resolution->second);
+            result.anchor.resolvedStation = resolution->second;
+            result.anchor.remapSignature.normalizedStation = resolution->second / editedCurve.totalLength();
+            result.anchor.remapSignature.primitiveId = parameter.primitiveId;
+            result.anchor.remapSignature.primitiveT = parameter.t;
+            result.anchor.remapSignature.worldPosition = evaluation.position;
+            result.resolved = true;
+            result.ambiguous = false;
+            result.diagnostic.clear();
+            appliedResolutions.push_back(originalAnchor.id);
+        }
+        results.push_back(std::move(result));
+    }
+    for (const auto& [anchorId, station] : stationResolutions) {
+        if (std::find(appliedResolutions.begin(), appliedResolutions.end(), anchorId) ==
+            appliedResolutions.end()) {
+            throw std::invalid_argument("Anchor station resolution for " + anchorId +
+                " does not match an unresolved retained anchor.");
+        }
     }
     return results;
 }
@@ -886,14 +912,18 @@ Revision CreateMapObjectCommand::apply(const Revision& current) const {
 
 EditMapObjectCommand::EditMapObjectCommand(
     domain::MapObject object,
-    std::uint64_t expectedRevision)
-    : object_(std::move(object)), expectedRevision_(expectedRevision) {}
+        std::uint64_t expectedRevision,
+        bool coalesceWithPriorEdit)
+        : object_(std::move(object)), expectedRevision_(expectedRevision),
+            coalesceWithPriorEdit_(coalesceWithPriorEdit) {}
 
 const char* EditMapObjectCommand::name() const noexcept { return "edit-map-object"; }
 std::optional<std::uint64_t> EditMapObjectCommand::expectedRevision() const noexcept {
     return expectedRevision_;
 }
-std::string EditMapObjectCommand::coalesceKey() const { return "edit-map-object:" + object_.id(); }
+std::string EditMapObjectCommand::coalesceKey() const {
+    return coalesceWithPriorEdit_ ? "edit-map-object:" + object_.id() : std::string{};
+}
 Revision EditMapObjectCommand::apply(const Revision& current) const {
     if (current.project.rootMap().findObject(object_.id()) == nullptr) {
         throw std::invalid_argument("MapObject does not exist.");
@@ -957,15 +987,23 @@ Revision CreateRoadSplineCommand::apply(const Revision& current) const {
     return roadRevision(current, project);
 }
 
-EditRoadSplineCommand::EditRoadSplineCommand(domain::RoadSpline road, std::uint64_t expectedRevision)
-    : road_(std::move(road)), expectedRevision_(expectedRevision) {}
+EditRoadSplineCommand::EditRoadSplineCommand(
+        domain::RoadSpline road,
+        std::uint64_t expectedRevision,
+        bool coalesceWithPriorEdit,
+        std::map<std::string, double> anchorStationResolutions)
+        : road_(std::move(road)), expectedRevision_(expectedRevision),
+            coalesceWithPriorEdit_(coalesceWithPriorEdit),
+            anchorStationResolutions_(std::move(anchorStationResolutions)) {}
 const char* EditRoadSplineCommand::name() const noexcept { return "edit-road-spline"; }
 std::optional<std::uint64_t> EditRoadSplineCommand::expectedRevision() const noexcept { return expectedRevision_; }
-std::string EditRoadSplineCommand::coalesceKey() const { return "edit-road-spline:" + road_.id; }
+std::string EditRoadSplineCommand::coalesceKey() const {
+    return coalesceWithPriorEdit_ ? "edit-road-spline:" + road_.id : std::string{};
+}
 std::vector<Diagnostic> EditRoadSplineCommand::validate(const Revision& current) const {
     try {
         const auto& original = findRoadSpline(current.project, road_.id);
-        const auto remaps = remapRoadEditAnchors(original, road_);
+        const auto remaps = remapRoadEditAnchors(original, road_, anchorStationResolutions_);
         std::vector<std::string> unresolvedIds;
         for (const auto& remap : remaps) {
             if (!remap.resolved) unresolvedIds.push_back(remap.anchor.id);
@@ -983,7 +1021,7 @@ std::vector<Diagnostic> EditRoadSplineCommand::validate(const Revision& current)
 }
 Revision EditRoadSplineCommand::apply(const Revision& current) const {
     const auto& original = findRoadSpline(current.project, road_.id);
-    const auto remaps = remapRoadEditAnchors(original, road_);
+    const auto remaps = remapRoadEditAnchors(original, road_, anchorStationResolutions_);
     auto updated = roadWithRemappedEditAnchors(original, road_, remaps);
     return roadRevision(current, current.project.withReplacedRoadSpline(std::move(updated)));
 }

@@ -39,12 +39,14 @@ public:
 private:
     void refreshProjectViews();
     void updateHistoryActions();
+    void updateTransformSpaceControls();
     void previewCommand(std::unique_ptr<application::Command> command);
     void applyPreview();
     void cancelPreview();
     void selectRoad(const std::string& roadId);
     void updateInspector();
     void previewControlPointEdit();
+    void editRoadWithAnchorResolution(domain::RoadSpline road, bool commitOnRelease, bool coalesceWithPriorEdit);
     void splitAtStation(const std::string& roadId, double station);
     void reverseSelectedRoad();
     void deleteSelectedRoad();
@@ -80,7 +82,12 @@ private:
     QDoubleSpinBox* measureEnd_ = nullptr;
     QDoubleSpinBox* boundaryStation_ = nullptr;
     QPushButton* measureButton_ = nullptr;
+    QPushButton* finishRoadButton_ = nullptr;
+    QLabel* zoomReadout_ = nullptr;
     QToolBar* roadContextToolbar_ = nullptr;
+    QToolBar* transformToolbar_ = nullptr;
+    QAction* worldTransformAction_ = nullptr;
+    QAction* localTransformAction_ = nullptr;
     QAction* undoAction_ = nullptr;
     QAction* redoAction_ = nullptr;
     std::unique_ptr<application::Command> pendingCommand_;

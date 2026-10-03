@@ -255,7 +255,7 @@ TEST_F(RoadAuthoringUiTest, TextAndRoadOverlaysMeetContrastThresholds) {
     EXPECT_GE(contrastRatio(QColor(220, 70, 60), canvasBackground), 3.0);
 }
 
-// Verifies Inspector controls remain inside a scrollable layout at baseline and doubled UI text scale.
+// Verifies Inspector and transform-space controls remain reachable at baseline and doubled UI text scale.
 TEST_F(RoadAuthoringUiTest, InspectorLayoutRemainsReachableAtDoubleTextScale) {
     atlas::ui::MainWindow window(atlas::domain::Project::empty("project", "root-map"));
     window.resize(1280, 800);
@@ -263,6 +263,7 @@ TEST_F(RoadAuthoringUiTest, InspectorLayoutRemainsReachableAtDoubleTextScale) {
     QApplication::processEvents();
     drawStraightRoad(window, 8);
     button(window, "applyPreviewButton")->click();
+    window.canvas()->setTool(atlas::ui::CanvasWidget::Tool::select);
     window.canvas()->setFocus();
     QApplication::processEvents();
     ASSERT_TRUE(window.canvas()->hasFocus());
@@ -310,14 +311,16 @@ TEST_F(RoadAuthoringUiTest, ToolShortcutsAreCanvasScoped) {
     EXPECT_EQ(window.canvas()->tool(), atlas::ui::CanvasWidget::Tool::measure);
 }
 
-// Verifies mouse and keyboard control-point edits preview without mutation and remain cancellable/undoable.
-TEST_F(RoadAuthoringUiTest, ControlPointEditPreviewCanBeCancelled) {
+// Verifies Select-mode handle drags cancel with Escape or commit on release, while Inspector edits remain previewed.
+TEST_F(RoadAuthoringUiTest, ControlPointDragCommitsAndInspectorEditPreviews) {
     atlas::ui::MainWindow window(atlas::domain::Project::empty("project", "root-map"));
+    window.show();
+    QApplication::processEvents();
     drawStraightRoad(window);
     button(window, "applyPreviewButton")->click();
     const auto before = window.commandProcessor().current().normalizedSource();
     auto* canvas = window.canvas();
-    canvas->setTool(atlas::ui::CanvasWidget::Tool::edit);
+    canvas->setTool(atlas::ui::CanvasWidget::Tool::select);
 
     const auto startScreen = canvas->camera().worldToScreen({0.0, 0.0});
     QMouseEvent press(QEvent::MouseButtonPress, QPointF(startScreen.x, startScreen.y),
@@ -327,13 +330,22 @@ TEST_F(RoadAuthoringUiTest, ControlPointEditPreviewCanBeCancelled) {
     QMouseEvent move(QEvent::MouseMove, QPointF(movedScreen.x, movedScreen.y),
         Qt::NoButton, Qt::LeftButton, Qt::NoModifier);
     QApplication::sendEvent(canvas, &move);
+    QKeyEvent cancelDrag(QEvent::KeyPress, Qt::Key_Escape, Qt::NoModifier);
+    QApplication::sendEvent(canvas, &cancelDrag);
+    EXPECT_EQ(window.commandProcessor().current().normalizedSource(), before);
+
+    QMouseEvent secondPress(QEvent::MouseButtonPress, QPointF(startScreen.x, startScreen.y),
+        Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+    QApplication::sendEvent(canvas, &secondPress);
+    QMouseEvent secondMove(QEvent::MouseMove, QPointF(movedScreen.x, movedScreen.y),
+        Qt::NoButton, Qt::LeftButton, Qt::NoModifier);
+    QApplication::sendEvent(canvas, &secondMove);
     QMouseEvent release(QEvent::MouseButtonRelease, QPointF(movedScreen.x, movedScreen.y),
         Qt::LeftButton, Qt::NoButton, Qt::NoModifier);
     QApplication::sendEvent(canvas, &release);
 
-    EXPECT_EQ(window.commandProcessor().current().normalizedSource(), before);
-    ASSERT_TRUE(button(window, "cancelPreviewButton"));
-    button(window, "cancelPreviewButton")->click();
+    EXPECT_NE(window.commandProcessor().current().normalizedSource(), before);
+    window.findChild<QAction*>(QStringLiteral("undoAction"))->trigger();
     EXPECT_EQ(window.commandProcessor().current().normalizedSource(), before);
 
     auto* pointSelector = window.findChild<QComboBox*>(QStringLiteral("controlPointSelector"));
@@ -354,6 +366,300 @@ TEST_F(RoadAuthoringUiTest, ControlPointEditPreviewCanBeCancelled) {
     EXPECT_GT(window.commandProcessor().current().project.roadSplines().front().stationAnchors.back().resolvedStation, 4.0);
     window.findChild<QAction*>(QStringLiteral("undoAction"))->trigger();
     EXPECT_EQ(window.commandProcessor().current().normalizedSource(), before);
+}
+
+// Verifies stable-ID control points can receive keyboard focus and move through the undoable edit command path.
+TEST_F(RoadAuthoringUiTest, ControlPointKeyboardFocusAndNudgeAreUndoable) {
+    atlas::ui::MainWindow window(atlas::domain::Project::empty("project", "root-map"));
+    window.show();
+    QApplication::processEvents();
+    drawStraightRoad(window, 8);
+    button(window, "applyPreviewButton")->click();
+    auto* canvas = window.canvas();
+    canvas->setTool(atlas::ui::CanvasWidget::Tool::select);
+    const auto controlPoint = canvas->camera().worldToScreen({8.0, 0.0});
+    QMouseEvent hover(QEvent::MouseMove, QPointF(controlPoint.x + 9.0, controlPoint.y),
+        Qt::NoButton, Qt::NoButton, Qt::NoModifier);
+    QApplication::sendEvent(canvas, &hover);
+    QKeyEvent focus(QEvent::KeyPress, Qt::Key_Tab, Qt::NoModifier);
+    QApplication::sendEvent(canvas, &focus);
+    EXPECT_NE(canvas->accessibleDescription().indexOf(QStringLiteral("Focused road control point")), -1);
+    EXPECT_NE(canvas->accessibleDescription().indexOf(QStringLiteral("/control/1")), -1);
+    const auto before = window.commandProcessor().current().normalizedSource();
+    QKeyEvent nudge(QEvent::KeyPress, Qt::Key_Left, Qt::NoModifier);
+    QApplication::sendEvent(canvas, &nudge);
+    ASSERT_NE(window.commandProcessor().current().normalizedSource(), before)
+        << window.findChild<QLabel*>(QStringLiteral("roadPreviewSummary"))->text().toStdString();
+    window.findChild<QAction*>(QStringLiteral("undoAction"))->trigger();
+    EXPECT_EQ(window.commandProcessor().current().normalizedSource(), before);
+}
+
+// Verifies point-like generic objects drag through EditMapObjectCommand, cancel without mutation, and undo on release.
+TEST_F(RoadAuthoringUiTest, GenericPointDragCommitsCancelsAndUndoes) {
+    auto project = atlas::domain::Project::empty("project", "root-map");
+    auto map = project.rootMap().withObject(atlas::domain::MapObject::create(
+        "point-1", "core.Point", {{"x", 0.0}, {"y", 0.0}}));
+    project = project.withRootMap(std::move(map));
+    atlas::ui::MainWindow window(std::move(project));
+    window.show();
+    QApplication::processEvents();
+    auto* canvas = window.canvas();
+    canvas->setTool(atlas::ui::CanvasWidget::Tool::select);
+    const auto before = window.commandProcessor().current().normalizedSource();
+    const auto start = canvas->camera().worldToScreen({0.0, 0.0});
+    const auto finish = canvas->camera().worldToScreen({2.0, 3.0});
+
+    QMouseEvent press(QEvent::MouseButtonPress, QPointF(start.x, start.y),
+        Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+    QApplication::sendEvent(canvas, &press);
+    QMouseEvent move(QEvent::MouseMove, QPointF(finish.x, finish.y),
+        Qt::NoButton, Qt::LeftButton, Qt::NoModifier);
+    QApplication::sendEvent(canvas, &move);
+    QKeyEvent cancel(QEvent::KeyPress, Qt::Key_Escape, Qt::NoModifier);
+    QApplication::sendEvent(canvas, &cancel);
+    EXPECT_EQ(window.commandProcessor().current().normalizedSource(), before);
+
+    QApplication::sendEvent(canvas, &press);
+    QApplication::sendEvent(canvas, &move);
+    QMouseEvent release(QEvent::MouseButtonRelease, QPointF(finish.x, finish.y),
+        Qt::LeftButton, Qt::NoButton, Qt::NoModifier);
+    QApplication::sendEvent(canvas, &release);
+    const auto* moved = window.commandProcessor().current().project.rootMap().findObject("point-1");
+    ASSERT_NE(moved, nullptr);
+    EXPECT_DOUBLE_EQ(moved->geometry().value("x", 0.0), 2.0);
+    EXPECT_DOUBLE_EQ(moved->geometry().value("y", 0.0), 3.0);
+    window.findChild<QAction*>(QStringLiteral("undoAction"))->trigger();
+    EXPECT_EQ(window.commandProcessor().current().normalizedSource(), before);
+}
+
+// Verifies tool actions expose the active mode and the road context toolbar provides explicit draft completion.
+TEST_F(RoadAuthoringUiTest, ToolStateZoomAndRoadFinishAreDiscoverable) {
+    atlas::ui::MainWindow window(atlas::domain::Project::empty("project", "root-map"));
+    window.show();
+    QApplication::processEvents();
+    auto* roadAction = window.findChild<QAction*>(QStringLiteral("roadToolAction"));
+    auto* selectAction = window.findChild<QAction*>(QStringLiteral("selectToolAction"));
+    auto* zoom = window.findChild<QLabel*>(QStringLiteral("zoomReadout"));
+    auto* finish = window.findChild<QPushButton*>(QStringLiteral("finishRoadDraftButton"));
+    auto* fit = window.findChild<QAction*>(QStringLiteral("fitSelectedRoadAction"));
+    ASSERT_NE(roadAction, nullptr);
+    ASSERT_NE(selectAction, nullptr);
+    ASSERT_NE(zoom, nullptr);
+    ASSERT_NE(finish, nullptr);
+    ASSERT_NE(fit, nullptr);
+    ASSERT_NE(window.findChild<QAction*>(QStringLiteral("fitSelectionAction")), nullptr);
+    roadAction->trigger();
+    EXPECT_TRUE(roadAction->isChecked());
+    EXPECT_FALSE(selectAction->isChecked());
+    EXPECT_TRUE(finish->isVisible());
+    const auto initialZoom = zoom->text();
+    QKeyEvent zoomIn(QEvent::KeyPress, Qt::Key_Plus, Qt::NoModifier);
+    QApplication::sendEvent(window.canvas(), &zoomIn);
+    EXPECT_NE(zoom->text(), initialZoom);
+    for (const auto key : {Qt::Key_Space, Qt::Key_Right, Qt::Key_Space}) {
+        QKeyEvent event(QEvent::KeyPress, key, Qt::NoModifier);
+        QApplication::sendEvent(window.canvas(), &event);
+    }
+    finish->click();
+    EXPECT_TRUE(window.findChild<QPushButton*>(QStringLiteral("applyPreviewButton"))->isEnabled());
+}
+
+// Verifies Fit Selection centers the viewport on a selected generic point and updates the zoom readout.
+TEST_F(RoadAuthoringUiTest, FitSelectionCentersPointObject) {
+    auto project = atlas::domain::Project::empty("project", "root-map");
+    project = project.withRootMap(project.rootMap().withObject(atlas::domain::MapObject::create(
+        "point-fit", "core.Point", {{"x", 24.0}, {"y", -11.0}})));
+    atlas::ui::MainWindow window(std::move(project));
+    window.show();
+    QApplication::processEvents();
+    window.canvas()->selectId("point-fit");
+    auto* fit = window.findChild<QAction*>(QStringLiteral("fitSelectionAction"));
+    ASSERT_NE(fit, nullptr);
+    auto* localTransform = window.findChild<QAction*>(QStringLiteral("localTransformSpaceAction"));
+    ASSERT_NE(localTransform, nullptr);
+    EXPECT_FALSE(localTransform->isEnabled());
+    fit->trigger();
+    EXPECT_DOUBLE_EQ(window.canvas()->camera().center().x, 24.0);
+    EXPECT_DOUBLE_EQ(window.canvas()->camera().center().y, -11.0);
+    EXPECT_NE(window.findChild<QLabel*>(QStringLiteral("zoomReadout"))->text().indexOf(QStringLiteral("Zoom:")), -1);
+}
+
+// Verifies world-axis translation and rotation gizmo drags commit as source-coordinate edits and undo cleanly.
+TEST_F(RoadAuthoringUiTest, RoadTransformGizmoTranslatesRotatesAndUndoes) {
+    atlas::ui::MainWindow window(atlas::domain::Project::empty("project", "root-map"));
+    window.show();
+    QApplication::processEvents();
+    drawStraightRoad(window, 8);
+    button(window, "applyPreviewButton")->click();
+    auto* canvas = window.canvas();
+    canvas->setTool(atlas::ui::CanvasWidget::Tool::select);
+    const auto before = window.commandProcessor().current().normalizedSource();
+    const auto zoom = canvas->camera().zoom();
+    const auto center = canvas->camera().worldToScreen({4.0, 0.0});
+    const QPointF xHandle(center.x + 36.0, center.y);
+    QMouseEvent press(QEvent::MouseButtonPress, xHandle, Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+    QApplication::sendEvent(canvas, &press);
+    QMouseEvent move(QEvent::MouseMove, xHandle + QPointF(30.0, 0.0),
+        Qt::NoButton, Qt::LeftButton, Qt::NoModifier);
+    QApplication::sendEvent(canvas, &move);
+    QMouseEvent release(QEvent::MouseButtonRelease, xHandle + QPointF(30.0, 0.0),
+        Qt::LeftButton, Qt::NoButton, Qt::NoModifier);
+    QApplication::sendEvent(canvas, &release);
+    const auto translated = window.commandProcessor().current().normalizedSource();
+    EXPECT_NE(translated, before);
+    EXPECT_NEAR(window.commandProcessor().current().project.roadSplines().front()
+        .primitives.front()["start"]["x"].get<double>(), 30.0 / zoom, 1.0e-6);
+
+    const auto rotationCenter = canvas->camera().worldToScreen({4.0 + 30.0 / zoom, 0.0});
+    const QPointF rotationHandle(rotationCenter.x + 38.0, rotationCenter.y - 38.0);
+    QMouseEvent rotationPress(QEvent::MouseButtonPress, rotationHandle,
+        Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+    QApplication::sendEvent(canvas, &rotationPress);
+    EXPECT_NE(canvas->accessibleDescription().indexOf(QStringLiteral("World rotation handle")), -1);
+    const QPointF rotatedPosition(rotationCenter.x, rotationCenter.y - 54.0);
+    QMouseEvent rotationMove(QEvent::MouseMove, rotatedPosition,
+        Qt::NoButton, Qt::LeftButton, Qt::NoModifier);
+    QApplication::sendEvent(canvas, &rotationMove);
+    QMouseEvent rotationRelease(QEvent::MouseButtonRelease, rotatedPosition,
+        Qt::LeftButton, Qt::NoButton, Qt::NoModifier);
+    QApplication::sendEvent(canvas, &rotationRelease);
+    EXPECT_NE(window.commandProcessor().current().normalizedSource(), translated);
+    window.findChild<QAction*>(QStringLiteral("undoAction"))->trigger();
+    EXPECT_EQ(window.commandProcessor().current().normalizedSource(), translated);
+    window.findChild<QAction*>(QStringLiteral("undoAction"))->trigger();
+    EXPECT_EQ(window.commandProcessor().current().normalizedSource(), before);
+}
+
+// Verifies Local mode follows a RoadSpline tangent frame and commits translation through the normal edit command.
+TEST_F(RoadAuthoringUiTest, RoadTransformGizmoUsesLocalTangentAxes) {
+    auto project = atlas::domain::Project::empty("project", "root-map");
+    atlas::domain::RoadSpline road;
+    road.id = "vertical-road";
+    road.mapId = "root-map";
+    road.primitives = nlohmann::json::array({nlohmann::json{
+        {"id", "line"}, {"kind", "line"}, {"startControlPointId", "start"},
+        {"endControlPointId", "end"}, {"start", {{"x", 0.0}, {"y", 0.0}}},
+        {"end", {{"x", 0.0}, {"y", 8.0}}}}});
+    atlas::application::CommandProcessor processor({0, std::move(project), {}});
+    processor.commit(atlas::application::CreateRoadSplineCommand(std::move(road), 0));
+    atlas::ui::MainWindow window(processor.current().project);
+    window.show();
+    QApplication::processEvents();
+    auto* canvas = window.canvas();
+    canvas->setTool(atlas::ui::CanvasWidget::Tool::select);
+    canvas->selectId("vertical-road");
+    auto* localAction = window.findChild<QAction*>(QStringLiteral("localTransformSpaceAction"));
+    ASSERT_NE(localAction, nullptr);
+    ASSERT_TRUE(localAction->isEnabled());
+    localAction->trigger();
+    EXPECT_EQ(canvas->transformSpace(), atlas::ui::CanvasWidget::TransformSpace::local);
+    const auto before = window.commandProcessor().current().normalizedSource();
+    const auto zoom = canvas->camera().zoom();
+    const auto center = canvas->camera().worldToScreen({0.0, 4.0});
+    const QPointF handle(center.x, center.y - 30.0);
+    QMouseEvent press(QEvent::MouseButtonPress, handle, Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+    QApplication::sendEvent(canvas, &press);
+    QMouseEvent move(QEvent::MouseMove, handle + QPointF(0.0, -30.0),
+        Qt::NoButton, Qt::LeftButton, Qt::NoModifier);
+    QApplication::sendEvent(canvas, &move);
+    QMouseEvent release(QEvent::MouseButtonRelease, handle + QPointF(0.0, -30.0),
+        Qt::LeftButton, Qt::NoButton, Qt::NoModifier);
+    QApplication::sendEvent(canvas, &release);
+    EXPECT_NE(window.commandProcessor().current().normalizedSource(), before);
+    EXPECT_NEAR(window.commandProcessor().current().project.roadSplines().front()
+        .primitives.front()["start"]["y"].get<double>(), 30.0 / zoom, 1.0e-6);
+    window.findChild<QAction*>(QStringLiteral("undoAction"))->trigger();
+    EXPECT_EQ(window.commandProcessor().current().normalizedSource(), before);
+}
+
+// Verifies point-object world-axis gizmo translation commits on release and Escape cancels without source mutation.
+TEST_F(RoadAuthoringUiTest, PointTransformGizmoTranslatesAndCancels) {
+    auto project = atlas::domain::Project::empty("project", "root-map");
+    project = project.withRootMap(project.rootMap().withObject(atlas::domain::MapObject::create(
+        "point-transform", "core.Point", {{"x", 2.0}, {"y", 3.0}})));
+    atlas::ui::MainWindow window(std::move(project));
+    window.show();
+    QApplication::processEvents();
+    auto* canvas = window.canvas();
+    canvas->setTool(atlas::ui::CanvasWidget::Tool::select);
+    canvas->selectId("point-transform");
+    const auto before = window.commandProcessor().current().normalizedSource();
+    const auto zoom = canvas->camera().zoom();
+    const auto center = canvas->camera().worldToScreen({2.0, 3.0});
+    const QPointF handle(center.x + 30.0, center.y);
+    QMouseEvent press(QEvent::MouseButtonPress, handle, Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+    QApplication::sendEvent(canvas, &press);
+    QMouseEvent move(QEvent::MouseMove, handle + QPointF(20.0, 0.0),
+        Qt::NoButton, Qt::LeftButton, Qt::NoModifier);
+    QApplication::sendEvent(canvas, &move);
+    QMouseEvent release(QEvent::MouseButtonRelease, handle + QPointF(20.0, 0.0),
+        Qt::LeftButton, Qt::NoButton, Qt::NoModifier);
+    QApplication::sendEvent(canvas, &release);
+    const auto* moved = window.commandProcessor().current().project.rootMap().findObject("point-transform");
+    ASSERT_NE(moved, nullptr);
+    EXPECT_NEAR(moved->geometry().value("x", 0.0), 2.0 + 20.0 / zoom, 1.0e-6);
+    EXPECT_DOUBLE_EQ(moved->geometry().value("y", 0.0), 3.0);
+    window.findChild<QAction*>(QStringLiteral("undoAction"))->trigger();
+    EXPECT_EQ(window.commandProcessor().current().normalizedSource(), before);
+
+    QMouseEvent cancelPress(QEvent::MouseButtonPress, handle, Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+    QApplication::sendEvent(canvas, &cancelPress);
+    QApplication::sendEvent(canvas, &move);
+    QKeyEvent cancel(QEvent::KeyPress, Qt::Key_Escape, Qt::NoModifier);
+    QApplication::sendEvent(canvas, &cancel);
+    EXPECT_EQ(window.commandProcessor().current().normalizedSource(), before);
+}
+
+// Verifies unresolved handle-edit anchors require an explicit station choice and cancel without mutation.
+TEST_F(RoadAuthoringUiTest, HandleEditPromptsForAnchorStationResolution) {
+    auto project = projectWithInteriorAnchor();
+    auto road = project.roadSplines().front();
+    road.primitives[0]["id"] = "replacement-line";
+    project = project.withReplacedRoadSpline(std::move(road));
+    atlas::ui::MainWindow window(std::move(project));
+    window.show();
+    QApplication::processEvents();
+    auto* canvas = window.canvas();
+    canvas->setTool(atlas::ui::CanvasWidget::Tool::select);
+    canvas->selectId("road-with-anchor");
+    const auto before = window.commandProcessor().current().normalizedSource();
+    const auto dragStart = canvas->camera().worldToScreen({0.0, 0.0});
+    const auto dragEnd = canvas->camera().worldToScreen({0.0, 1.0});
+    const auto dragHandle = [&]() {
+        QMouseEvent press(QEvent::MouseButtonPress, QPointF(dragStart.x, dragStart.y),
+            Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+        QApplication::sendEvent(canvas, &press);
+        QMouseEvent move(QEvent::MouseMove, QPointF(dragEnd.x, dragEnd.y),
+            Qt::NoButton, Qt::LeftButton, Qt::NoModifier);
+        QApplication::sendEvent(canvas, &move);
+        QMouseEvent release(QEvent::MouseButtonRelease, QPointF(dragEnd.x, dragEnd.y),
+            Qt::LeftButton, Qt::NoButton, Qt::NoModifier);
+        QApplication::sendEvent(canvas, &release);
+    };
+    const auto answerStationDialog = [](double station, bool accept) {
+        QTimer::singleShot(0, [station, accept]() {
+            auto* dialog = qobject_cast<QInputDialog*>(QApplication::activeModalWidget());
+            if (dialog == nullptr) return;
+            dialog->setDoubleValue(station);
+            if (accept) dialog->accept();
+            else dialog->reject();
+        });
+    };
+
+    answerStationDialog(5.0, false);
+    dragHandle();
+    EXPECT_EQ(window.commandProcessor().current().normalizedSource(), before);
+
+    answerStationDialog(5.0, true);
+    dragHandle();
+    EXPECT_NE(window.commandProcessor().current().normalizedSource(), before);
+    const auto& anchors = window.commandProcessor().current().project.roadSplines().front().stationAnchors;
+    const auto anchor = std::find_if(anchors.begin(), anchors.end(), [](const auto& candidate) {
+        return candidate.id == "anchor-interior";
+    });
+    ASSERT_NE(anchor, anchors.end());
+    EXPECT_DOUBLE_EQ(anchor->resolvedStation, 5.0);
+    EXPECT_EQ(anchor->remapSignature.primitiveId, "replacement-line");
 }
 
 // Verifies moving an internal RoadSegment boundary commits through the station preview.
@@ -448,6 +754,86 @@ TEST_F(RoadAuthoringUiTest, MeasureStationsUsesExactValuesWithoutMutation) {
 
     EXPECT_NE(window.statusBar()->currentMessage().toStdString().find("5.500 m"), std::string::npos);
     EXPECT_EQ(window.commandProcessor().current().normalizedSource(), before);
+}
+
+// Verifies canvas measurement renders first, live, and completed feedback and Escape removes it without source edits.
+TEST_F(RoadAuthoringUiTest, CanvasMeasurementOverlayIsLiveAndTransient) {
+    atlas::ui::MainWindow window(atlas::domain::Project::empty("project", "root-map"));
+    window.show();
+    QApplication::processEvents();
+    drawStraightRoad(window, 8);
+    button(window, "applyPreviewButton")->click();
+    const auto before = window.commandProcessor().current().normalizedSource();
+    auto* canvas = window.canvas();
+    canvas->setTool(atlas::ui::CanvasWidget::Tool::measure);
+    const auto baseline = canvas->grabFramebuffer();
+    const auto countMeasurePixels = [](const QImage& image) {
+        std::size_t count = 0;
+        for (int y = 0; y < image.height(); ++y) {
+            for (int x = 0; x < image.width(); ++x) {
+                const auto color = image.pixelColor(x, y);
+                if (color.red() < 180 && color.green() > 180 && color.blue() > 150) ++count;
+            }
+        }
+        return count;
+    };
+    const auto baselineMeasurePixels = countMeasurePixels(baseline);
+    const auto start = canvas->camera().worldToScreen({1.0, 0.0});
+    const auto end = canvas->camera().worldToScreen({6.0, 0.0});
+    QMouseEvent first(QEvent::MouseButtonPress, QPointF(start.x, start.y),
+        Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+    QApplication::sendEvent(canvas, &first);
+    QMouseEvent move(QEvent::MouseMove, QPointF(end.x, end.y),
+        Qt::NoButton, Qt::NoButton, Qt::NoModifier);
+    QApplication::sendEvent(canvas, &move);
+    QApplication::processEvents();
+    const auto liveOverlay = canvas->grabFramebuffer();
+    EXPECT_GT(countMeasurePixels(liveOverlay), baselineMeasurePixels);
+
+    QMouseEvent second(QEvent::MouseButtonPress, QPointF(end.x, end.y),
+        Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+    QApplication::sendEvent(canvas, &second);
+    QApplication::processEvents();
+    EXPECT_NE(window.statusBar()->currentMessage().toStdString().find("5.000 m"), std::string::npos);
+    QKeyEvent cancel(QEvent::KeyPress, Qt::Key_Escape, Qt::NoModifier);
+    QApplication::sendEvent(canvas, &cancel);
+    QApplication::processEvents();
+    EXPECT_LT(countMeasurePixels(canvas->grabFramebuffer()), countMeasurePixels(liveOverlay));
+    EXPECT_EQ(window.commandProcessor().current().normalizedSource(), before);
+}
+
+// Verifies split RoadSegments render and select as distinct station intervals with stable segment IDs.
+TEST_F(RoadAuthoringUiTest, SplitSegmentsHaveDistinctCanvasSelection) {
+    atlas::ui::MainWindow window(atlas::domain::Project::empty("project", "root-map"));
+    window.show();
+    QApplication::processEvents();
+    drawStraightRoad(window, 8);
+    button(window, "applyPreviewButton")->click();
+    const auto singleSegmentFrame = window.canvas()->grabFramebuffer();
+    window.canvas()->setTool(atlas::ui::CanvasWidget::Tool::split);
+    const auto splitPoint = window.canvas()->camera().worldToScreen({4.0, 0.0});
+    QMouseEvent split(QEvent::MouseButtonPress, QPointF(splitPoint.x, splitPoint.y),
+        Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+    QApplication::sendEvent(window.canvas(), &split);
+    button(window, "applyPreviewButton")->click();
+    ASSERT_EQ(window.commandProcessor().current().project.roadSegments().size(), 2U);
+    EXPECT_NE(window.canvas()->grabFramebuffer(), singleSegmentFrame);
+    window.canvas()->setTool(atlas::ui::CanvasWidget::Tool::select);
+    auto* summary = window.findChild<QLabel*>(QStringLiteral("objectInspectorSummary"));
+    ASSERT_NE(summary, nullptr);
+    QString firstSegment;
+    for (const auto station : {2.0, 6.0}) {
+        const auto point = window.canvas()->camera().worldToScreen({station, 0.0});
+        QMouseEvent click(QEvent::MouseButtonPress, QPointF(point.x, point.y),
+            Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+        QApplication::sendEvent(window.canvas(), &click);
+        if (station == 2.0) {
+            firstSegment = summary->text().section(QStringLiteral("Selected segment: "), 1);
+            EXPECT_FALSE(firstSegment.isEmpty());
+        } else {
+            EXPECT_NE(summary->text().section(QStringLiteral("Selected segment: "), 1), firstSegment);
+        }
+    }
 }
 
 // Verifies Extend uses keyboard-editable endpoint values and remains previewable and undoable.

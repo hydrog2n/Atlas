@@ -186,7 +186,10 @@ private:
 
 class EditMapObjectCommand final : public Command {
 public:
-    EditMapObjectCommand(domain::MapObject object, std::uint64_t expectedRevision);
+    EditMapObjectCommand(
+        domain::MapObject object,
+        std::uint64_t expectedRevision,
+        bool coalesceWithPriorEdit = true);
 
     const char* name() const noexcept override;
     std::optional<std::uint64_t> expectedRevision() const noexcept override;
@@ -196,6 +199,7 @@ public:
 private:
     domain::MapObject object_;
     std::uint64_t expectedRevision_;
+    bool coalesceWithPriorEdit_;
 };
 
 class DeleteMapObjectCommand final : public Command {
@@ -231,7 +235,11 @@ private:
 
 class EditRoadSplineCommand final : public Command {
 public:
-    EditRoadSplineCommand(domain::RoadSpline road, std::uint64_t expectedRevision);
+    EditRoadSplineCommand(
+        domain::RoadSpline road,
+        std::uint64_t expectedRevision,
+        bool coalesceWithPriorEdit = true,
+        std::map<std::string, double> anchorStationResolutions = {});
     const char* name() const noexcept override;
     std::optional<std::uint64_t> expectedRevision() const noexcept override;
     std::string coalesceKey() const override;
@@ -241,6 +249,8 @@ public:
 private:
     domain::RoadSpline road_;
     std::uint64_t expectedRevision_;
+    bool coalesceWithPriorEdit_;
+    std::map<std::string, double> anchorStationResolutions_;
 };
 
 class ExtendRoadSplineCommand final : public Command {

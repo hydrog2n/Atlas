@@ -675,6 +675,35 @@ TEST(CommandProcessor, EditRoadSplineBlocksUnresolvedAnchorRemap) {
     EXPECT_EQ(processor.current().normalizedSource(), before);
 }
 
+// Verifies a user-selected station resolves a retained ambiguous anchor and refreshes its signature deterministically.
+TEST(CommandProcessor, EditRoadSplineAcceptsExplicitAnchorStationResolution) {
+    auto processor = processorWithRoad();
+    auto edited = processor.current().project.roadSplines().front();
+    edited.primitives[0]["id"] = "replacement-line";
+    edited.primitives[0]["startControlPointId"] = "replacement-a";
+    edited.primitives[0]["endControlPointId"] = "replacement-b";
+    const auto before = processor.current().normalizedSource();
+    const auto unresolvedPreview = processor.preview(
+        atlas::application::EditRoadSplineCommand(edited, processor.current().number));
+    ASSERT_FALSE(unresolvedPreview.diagnostics.empty());
+    ASSERT_FALSE(unresolvedPreview.diagnostics.front().affectedIds.empty());
+    const auto anchorId = unresolvedPreview.diagnostics.front().affectedIds.front();
+    const std::map<std::string, double> resolutions{{anchorId, 2.5}};
+
+    processor.commit(atlas::application::EditRoadSplineCommand(
+        edited, processor.current().number, false, resolutions));
+    const auto& anchors = processor.current().project.roadSplines().front().stationAnchors;
+    const auto& anchor = *std::find_if(anchors.begin(), anchors.end(), [&](const auto& candidate) {
+        return candidate.id == anchorId;
+    });
+    EXPECT_DOUBLE_EQ(anchor.resolvedStation, 2.5);
+    EXPECT_EQ(anchor.remapSignature.primitiveId, "replacement-line");
+    EXPECT_DOUBLE_EQ(anchor.remapSignature.primitiveT, 0.25);
+    EXPECT_DOUBLE_EQ(anchor.remapSignature.worldPosition.x, 2.5);
+    EXPECT_TRUE(processor.undo());
+    EXPECT_EQ(processor.current().normalizedSource(), before);
+}
+
 // Verifies that extend and shorten commands update the final source endpoint through transactions.
 TEST(CommandProcessor, ExtendAndShortenRoadSplineUseRevisionGuards) {
     auto processor = processorWithRoad();

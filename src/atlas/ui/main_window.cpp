@@ -2,6 +2,7 @@
 #include "atlas/persistence/package.hpp"
 
 #include <QAction>
+#include <QActionGroup>
 #include <QDialog>
 #include <QDialogButtonBox>
 #include <QCheckBox>
@@ -218,6 +219,34 @@ MainWindow::MainWindow(domain::Project project, QWidget* parent)
     measureAction->setObjectName(QStringLiteral("measureToolAction"));
     measureAction->setShortcut(QKeySequence(QStringLiteral("M")));
     measureAction->setShortcutContext(Qt::WidgetShortcut);
+    auto* toolGroup = new QActionGroup(toolbar);
+    toolGroup->setExclusive(true);
+    for (auto* action : {selectAction, roadAction, editAction, splitAction, measureAction}) {
+        action->setCheckable(true);
+        toolGroup->addAction(action);
+    }
+    selectAction->setChecked(true);
+    zoomReadout_ = new QLabel(QStringLiteral("Zoom: 100%"), toolbar);
+    zoomReadout_->setObjectName(QStringLiteral("zoomReadout"));
+    zoomReadout_->setAccessibleName(QStringLiteral("Canvas zoom level"));
+    toolbar->addWidget(zoomReadout_);
+
+    transformToolbar_ = addToolBar(QStringLiteral("Transform space"));
+    transformToolbar_->setObjectName(QStringLiteral("transformSpaceToolbar"));
+    transformToolbar_->setMovable(false);
+    auto* transformSpaceGroup = new QActionGroup(transformToolbar_);
+    transformSpaceGroup->setExclusive(true);
+    worldTransformAction_ = transformToolbar_->addAction(QStringLiteral("World"));
+    worldTransformAction_->setObjectName(QStringLiteral("worldTransformSpaceAction"));
+    worldTransformAction_->setCheckable(true);
+    localTransformAction_ = transformToolbar_->addAction(QStringLiteral("Local"));
+    localTransformAction_->setObjectName(QStringLiteral("localTransformSpaceAction"));
+    localTransformAction_->setCheckable(true);
+    localTransformAction_->setEnabled(false);
+    transformSpaceGroup->addAction(worldTransformAction_);
+    transformSpaceGroup->addAction(localTransformAction_);
+    worldTransformAction_->setChecked(true);
+    transformToolbar_->hide();
 
     roadContextToolbar_ = addToolBar(QStringLiteral("Road parameters"));
     roadContextToolbar_->setObjectName(QStringLiteral("roadContextToolbar"));
@@ -267,9 +296,14 @@ MainWindow::MainWindow(domain::Project project, QWidget* parent)
     measureButton_->setObjectName(QStringLiteral("measureStationsButton"));
     measureButton_->setAccessibleName(QStringLiteral("Measure distance between road stations"));
     roadContextToolbar_->addWidget(measureButton_);
+    finishRoadButton_ = new QPushButton(QStringLiteral("Finish road"), roadContextToolbar_);
+    finishRoadButton_->setObjectName(QStringLiteral("finishRoadDraftButton"));
+    finishRoadButton_->setAccessibleName(QStringLiteral("Finish current road draft"));
+    roadContextToolbar_->addWidget(finishRoadButton_);
     measureStart_->hide();
     measureEnd_->hide();
     measureButton_->hide();
+    finishRoadButton_->hide();
     roadContextToolbar_->hide();
 
     changesDock_ = new QDockWidget(QStringLiteral("Changes & Diagnostics"), this);
@@ -374,18 +408,41 @@ MainWindow::MainWindow(domain::Project project, QWidget* parent)
             std::move(road), commandProcessor_.current().number, widthEditor_->value()));
     });
     canvas_->setRoadEditedHandler([this](domain::RoadSpline road) {
-        previewCommand(std::make_unique<application::EditRoadSplineCommand>(
-            std::move(road), commandProcessor_.current().number));
+        editRoadWithAnchorResolution(std::move(road), true, false);
+    });
+    canvas_->setMapObjectEditedHandler([this](domain::MapObject object) {
+        previewCommand(std::make_unique<application::EditMapObjectCommand>(
+            std::move(object), commandProcessor_.current().number, false));
+        applyPreview();
     });
     canvas_->setRoadSelectedHandler([this](std::string roadId) {
         selectedSegmentId_.clear();
+        canvas_->setSelectedSegment({});
         selectRoad(roadId);
+    });
+    canvas_->setSegmentSelectedHandler([this](std::string roadId, std::string segmentId) {
+        selectedSegmentId_ = std::move(segmentId);
+        selectRoad(roadId);
+        canvas_->setSelectedSegment(selectedSegmentId_);
+        updateInspector();
     });
     canvas_->setRoadStationHandler([this](std::string roadId, double station) {
         splitAtStation(roadId, station);
     });
     canvas_->setStatusHandler([this](QString message) { statusBar()->showMessage(std::move(message)); });
-    canvas_->setToolChangedHandler([this](CanvasWidget::Tool tool) {
+    canvas_->setSelectionChangedHandler([this](bool roadSelected) {
+        localTransformAction_->setEnabled(roadSelected);
+        if (!roadSelected) canvas_->setTransformSpace(CanvasWidget::TransformSpace::world);
+        updateTransformSpaceControls();
+    });
+    canvas_->setToolChangedHandler([this, selectAction, roadAction, editAction, splitAction, measureAction](
+        CanvasWidget::Tool tool) {
+        selectAction->setChecked(tool == CanvasWidget::Tool::select);
+        roadAction->setChecked(tool == CanvasWidget::Tool::road);
+        editAction->setChecked(tool == CanvasWidget::Tool::edit);
+        splitAction->setChecked(tool == CanvasWidget::Tool::split);
+        measureAction->setChecked(tool == CanvasWidget::Tool::measure);
+        transformToolbar_->setVisible(tool == CanvasWidget::Tool::select || tool == CanvasWidget::Tool::edit);
         const auto creating = tool == CanvasWidget::Tool::road;
         const auto measuring = tool == CanvasWidget::Tool::measure;
         roadContextToolbar_->setVisible(creating || measuring);
@@ -396,6 +453,10 @@ MainWindow::MainWindow(domain::Project project, QWidget* parent)
         measureStart_->setVisible(measuring);
         measureEnd_->setVisible(measuring);
         measureButton_->setVisible(measuring);
+        finishRoadButton_->setVisible(creating);
+    });
+    canvas_->setViewChangedHandler([this](double zoom) {
+        zoomReadout_->setText(QStringLiteral("Zoom: %1%").arg(zoom * 100.0, 0, 'f', 0));
     });
 
     auto* roadMenu = menuBar()->addMenu(QStringLiteral("Road"));
@@ -422,10 +483,29 @@ MainWindow::MainWindow(domain::Project project, QWidget* parent)
     connect(boundaryButton, &QPushButton::clicked, boundaryAction, &QAction::trigger);
     connect(mergeButton, &QPushButton::clicked, mergeAction, &QAction::trigger);
     auto* viewMenu = menuBar()->addMenu(QStringLiteral("View"));
+    auto* fitSelectionAction = viewMenu->addAction(QStringLiteral("Fit selection"));
+    fitSelectionAction->setObjectName(QStringLiteral("fitSelectionAction"));
+    fitSelectionAction->setShortcut(QKeySequence(QStringLiteral("Shift+F")));
+    connect(fitSelectionAction, &QAction::triggered, canvas_, [this]() { canvas_->fitSelection(); });
+    connect(worldTransformAction_, &QAction::triggered, this, [this]() {
+        canvas_->setTransformSpace(CanvasWidget::TransformSpace::world);
+        updateTransformSpaceControls();
+    });
+    connect(localTransformAction_, &QAction::triggered, this, [this]() {
+        canvas_->setTransformSpace(CanvasWidget::TransformSpace::local);
+        updateTransformSpaceControls();
+    });
+    auto* fitRoadAction = viewMenu->addAction(QStringLiteral("Fit selected road"));
+    fitRoadAction->setObjectName(QStringLiteral("fitSelectedRoadAction"));
+    fitRoadAction->setShortcut(QKeySequence(QStringLiteral("F")));
+    connect(fitRoadAction, &QAction::triggered, this, [this]() {
+        if (!selectedRoadId_.empty()) canvas_->fitRoad(selectedRoadId_);
+    });
     viewMenu->addAction(hierarchyDock->toggleViewAction());
     viewMenu->addAction(inspectorDock->toggleViewAction());
     viewMenu->addAction(changesDock_->toggleViewAction());
     viewMenu->addAction(roadContextToolbar_->toggleViewAction());
+    viewMenu->addAction(transformToolbar_->toggleViewAction());
     auto* toolsMenu = menuBar()->addMenu(QStringLiteral("Tools"));
     toolsMenu->addAction(selectAction);
     toolsMenu->addAction(roadAction);
@@ -450,6 +530,9 @@ MainWindow::MainWindow(domain::Project project, QWidget* parent)
         statusBar()->showMessage(QStringLiteral("Road distance: %1 m")
             .arg(std::abs(measureEnd_->value() - measureStart_->value()), 0, 'f', 3));
     });
+    connect(finishRoadButton_, &QPushButton::clicked, canvas_, [this]() {
+        canvas_->finishRoadDrawing();
+    });
     connect(splitButton, &QPushButton::clicked, this, [this]() {
         if (selectedRoadId_.empty()) return;
         bool accepted = false;
@@ -464,9 +547,11 @@ MainWindow::MainWindow(domain::Project project, QWidget* parent)
             const auto kind = current->data(0, Qt::UserRole + 1).toString();
             if (kind == QStringLiteral("road")) {
                 selectedSegmentId_.clear();
+                canvas_->setSelectedSegment({});
                 selectRoad(id);
             } else if (kind == QStringLiteral("segment")) {
                 selectedSegmentId_ = id;
+                canvas_->setSelectedSegment(id);
                 const auto& project = commandProcessor_.current().project;
                 const auto segment = std::find_if(project.roadSegments().begin(), project.roadSegments().end(),
                     [&](const auto& item) { return item.id == id; });
@@ -528,6 +613,7 @@ CanvasWidget* MainWindow::canvas() const noexcept {
 
 void MainWindow::refreshProjectViews() {
     const auto& project = commandProcessor_.current().project;
+    const auto previousCanvasSelection = canvas_->selection().primaryId();
     QSignalBlocker blocker(hierarchy_);
     canvas_->setProject(project);
     hierarchy_->clear();
@@ -560,7 +646,8 @@ void MainWindow::refreshProjectViews() {
         selectedRoadId_.clear();
         selectedSegmentId_.clear();
     }
-    canvas_->selectId(selectedRoadId_);
+    canvas_->selectId(selectedRoadId_.empty() ? previousCanvasSelection : selectedRoadId_);
+    canvas_->setSelectedSegment(selectedSegmentId_);
     updateInspector();
     const auto title = packagePath_.empty() ? QStringLiteral("Atlas")
         : QStringLiteral("Atlas — %1").arg(QString::fromStdString(packagePath_.string()));
@@ -570,6 +657,14 @@ void MainWindow::refreshProjectViews() {
 void MainWindow::updateHistoryActions() {
     undoAction_->setEnabled(commandProcessor_.canUndo());
     redoAction_->setEnabled(commandProcessor_.canRedo());
+}
+
+void MainWindow::updateTransformSpaceControls() {
+    const auto* selectedRoad = findRoad(
+        commandProcessor_.current().project, canvas_->selection().primaryId());
+    localTransformAction_->setEnabled(selectedRoad != nullptr);
+    worldTransformAction_->setChecked(canvas_->transformSpace() == CanvasWidget::TransformSpace::world);
+    localTransformAction_->setChecked(canvas_->transformSpace() == CanvasWidget::TransformSpace::local);
 }
 
 void MainWindow::selectRoad(const std::string& roadId) {
@@ -715,8 +810,52 @@ void MainWindow::previewControlPointEdit() {
             }
         }
     }
-    previewCommand(std::make_unique<application::EditRoadSplineCommand>(
-        std::move(editedRoad), commandProcessor_.current().number));
+    editRoadWithAnchorResolution(std::move(editedRoad), false, true);
+}
+
+void MainWindow::editRoadWithAnchorResolution(
+    domain::RoadSpline road,
+    bool commitOnRelease,
+    bool coalesceWithPriorEdit) {
+    const auto revision = commandProcessor_.current().number;
+    auto command = std::make_unique<application::EditRoadSplineCommand>(
+        road, revision, coalesceWithPriorEdit);
+    application::Preview probe;
+    try {
+        probe = commandProcessor_.preview(*command);
+    } catch (const std::exception&) {
+        previewCommand(std::move(command));
+        if (commitOnRelease) applyPreview();
+        return;
+    }
+    const auto remapDiagnostic = std::find_if(probe.diagnostics.begin(), probe.diagnostics.end(),
+        [](const auto& diagnostic) {
+            return diagnostic.ruleId == "STAT-CORE-003" && diagnostic.blocksCommit;
+        });
+    if (remapDiagnostic != probe.diagnostics.end()) {
+        const auto* original = findRoad(commandProcessor_.current().project, road.id);
+        if (original == nullptr) return;
+        std::map<std::string, double> stationResolutions;
+        for (const auto& anchorId : remapDiagnostic->affectedIds) {
+            const auto anchor = std::find_if(original->stationAnchors.begin(), original->stationAnchors.end(),
+                [&](const auto& candidate) { return candidate.id == anchorId; });
+            if (anchor == original->stationAnchors.end()) continue;
+            bool accepted = false;
+            const auto station = QInputDialog::getDouble(this, QStringLiteral("Resolve RoadSpline anchor"),
+                QStringLiteral("Choose a target station in meters for anchor %1 on the edited curve.")
+                    .arg(QString::fromStdString(anchorId)),
+                anchor->resolvedStation, 0.0, 1000000000.0, 3, &accepted);
+            if (!accepted) {
+                statusBar()->showMessage(QStringLiteral("Road edit canceled; anchor resolution is required."));
+                return;
+            }
+            stationResolutions.emplace(anchorId, station);
+        }
+        command = std::make_unique<application::EditRoadSplineCommand>(
+            std::move(road), revision, coalesceWithPriorEdit, std::move(stationResolutions));
+    }
+    previewCommand(std::move(command));
+    if (commitOnRelease) applyPreview();
 }
 
 void MainWindow::splitAtStation(const std::string& roadId, double station) {

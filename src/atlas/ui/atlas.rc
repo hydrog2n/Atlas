@@ -1,0 +1,31 @@
+#include <windows.h>
+
+IDI_ATLAS_ICON ICON "Atlas_iconVector.ico"
+
+VS_VERSION_INFO VERSIONINFO
+ FILEVERSION 0,5,1,0
+ PRODUCTVERSION 0,5,1,0
+ FILEFLAGSMASK 0x3fL
+ FILEFLAGS 0
+ FILEOS VOS_NT_WINDOWS32
+ FILETYPE VFT_APP
+ FILESUBTYPE VFT2_UNKNOWN
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904B0"
+        BEGIN
+            VALUE "CompanyName", "Hydrogen Studios, LLC\0"
+            VALUE "FileDescription", "Atlas game-agnostic world authoring application\0"
+            VALUE "FileVersion", "0.5.1.0\0"
+            VALUE "InternalName", "Atlas\0"
+            VALUE "OriginalFilename", "atlas.exe\0"
+            VALUE "ProductName", "Atlas\0"
+            VALUE "ProductVersion", "0.5.1\0"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x0409, 1200
+    END
+END
